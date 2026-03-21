@@ -1,0 +1,113 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Shop {
+  id            String    @id @default(uuid())
+  domain        String    @unique
+  accessToken   String
+  plan          Plan      @default(FREE)
+  timezone      String?
+  alertsEnabled Boolean   @default(true)
+  alertEmail    String?
+  installedAt   DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  products      Product[]
+
+  @@map("shops")
+}
+
+model Product {
+  id               String      @id @default(uuid())
+  shopId           String
+  shopifyProductId String
+  shopifyVariantId String
+  title            String
+  sku              String
+  currentStock     Int         @default(0)
+  leadTimeDays     Float       @default(7)
+  serviceLevelZ    Float       @default(1.65)
+  stockUpdatedAt   DateTime    @default(now())
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+  dailySales       DailySale[]
+  forecast         Forecast?
+  shop             Shop        @relation(fields: [shopId], references: [id], onDelete: Cascade)
+
+  @@unique([shopId, shopifyVariantId])
+  @@map("products")
+}
+
+model DailySale {
+  id        String   @id @default(uuid())
+  productId String
+  date      DateTime @db.Date
+  unitsSold Int      @default(0)
+  createdAt DateTime @default(now())
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, date])
+  @@map("daily_sales")
+}
+
+model Forecast {
+  id                   String         @id @default(uuid())
+  productId            String         @unique
+  velocityPerDay       Float
+  stddevDemand         Float
+  safetyStock          Float
+  reorderPoint         Float
+  daysOfStockRemaining Int?
+  status               ForecastStatus @default(OK)
+  calculatedAt         DateTime       @default(now())
+  updatedAt            DateTime       @updatedAt
+  product              Product        @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@map("forecasts")
+}
+
+model PurchaseOrder {
+  id        String       @id @default(uuid())
+  shopId    String
+  reference String       @unique
+  status    PoStatus     @default(DRAFT)
+  notes     String?
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+  lineItems PoLineItem[]
+
+  @@map("purchase_orders")
+}
+
+model PoLineItem {
+  id              String        @id @default(uuid())
+  purchaseOrderId String
+  productId       String
+  quantity        Int
+  unitCost        Float?
+  purchaseOrder   PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+
+  @@map("po_line_items")
+}
+
+enum Plan {
+  FREE
+  GROWTH
+  PRO
+}
+
+enum ForecastStatus {
+  OK
+  REORDER
+  CRITICAL
+}
+
+enum PoStatus {
+  DRAFT
+  SENT
+  RECEIVED
+}

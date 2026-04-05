@@ -84,6 +84,16 @@ model PurchaseOrder {
   @@map("purchase_orders")
 }
 
+model ProcessedOrder {
+  id             String   @id @default(uuid())
+  shopId         String
+  shopifyOrderId String
+  processedAt    DateTime @default(now())
+
+  @@unique([shopId, shopifyOrderId])
+  @@map("processed_orders")
+}
+
 model PoLineItem {
   id              String        @id @default(uuid())
   purchaseOrderId String

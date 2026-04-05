@@ -33,6 +33,20 @@ export class SyncService {
     });
     if (!dbShop) return;
 
+    const alreadyProcessed = await this.prisma.processedOrder.findUnique({
+      where: {
+        shopId_shopifyOrderId: {
+          shopId: dbShop.id,
+          shopifyOrderId: String(order.id),
+        },
+      },
+    });
+
+    if (alreadyProcessed) {
+      this.logger.warn(`Duplicate webhook for order ${order.id} — skipping`);
+      return;
+    }
+
     const orderDate = format(new Date(order.created_at), 'yyyy-MM-dd');
 
     for (const item of order.line_items) {
@@ -64,6 +78,10 @@ export class SyncService {
         },
       });
     }
+
+    await this.prisma.processedOrder.create({
+      data: { shopId: dbShop.id, shopifyOrderId: String(order.id) },
+    });
   }
 
   async processInventoryUpdate(

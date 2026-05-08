@@ -19,9 +19,9 @@ import type {
 export class ShopifyWebhookController {
   constructor(private readonly syncService: SyncService) {}
 
-  @Post('orders/create')
+  @Post('orders/paid')
   @HttpCode(200)
-  async handleOrderCreate(
+  async handleOrderPaid(
     @Body() body: ShopifyOrder,
     @Headers('x-shopify-shop-domain') shop: string,
   ): Promise<{ received: boolean }> {

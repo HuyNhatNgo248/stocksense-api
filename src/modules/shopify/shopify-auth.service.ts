@@ -24,15 +24,13 @@ export class ShopifyAuthService {
   ) {}
 
   buildInstallUrl(shop: string): string {
-    const scopes = 'read_orders,read_products,read_inventory';
     const redirectUri = `${this.config.getOrThrow<string>('APP_URL')}/api/auth/callback`;
-    const apiKey = this.config.getOrThrow<string>('SHOPIFY_API_KEY');
+    const apiKey = this.config.getOrThrow<string>('SHOPIFY_APP_CLIENT_ID');
     const nonce = Math.random().toString(36).substring(2);
 
     return (
       `https://${shop}/admin/oauth/authorize` +
       `?client_id=${apiKey}` +
-      `&scope=${scopes}` +
       `&redirect_uri=${redirectUri}` +
       `&state=${nonce}`
     );
@@ -52,7 +50,7 @@ export class ShopifyAuthService {
       );
     }
 
-    const apiKey = this.config.getOrThrow<string>('SHOPIFY_API_KEY');
+    const apiKey = this.config.getOrThrow<string>('SHOPIFY_APP_CLIENT_ID');
     return `https://${query.shop}/admin/apps/${apiKey}`;
   }
 
@@ -66,7 +64,7 @@ export class ShopifyAuthService {
 
     const digest = createHmac(
       'sha256',
-      this.config.getOrThrow<string>('SHOPIFY_API_SECRET'),
+      this.config.getOrThrow<string>('SHOPIFY_APP_CLIENT_SECRET'),
     )
       .update(message)
       .digest('hex');
@@ -81,8 +79,10 @@ export class ShopifyAuthService {
       this.http.post<ShopifyTokenResponse>(
         `https://${shop}/admin/oauth/access_token`,
         {
-          client_id: this.config.getOrThrow<string>('SHOPIFY_API_KEY'),
-          client_secret: this.config.getOrThrow<string>('SHOPIFY_API_SECRET'),
+          client_id: this.config.getOrThrow<string>('SHOPIFY_APP_CLIENT_ID'),
+          client_secret: this.config.getOrThrow<string>(
+            'SHOPIFY_APP_CLIENT_SECRET',
+          ),
           code,
         },
       ),

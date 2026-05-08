@@ -13,6 +13,7 @@
     "start:debug": "nest start --debug --watch",
     "start:prod": "node dist/main",
     "lint": "eslint '{src,apps,libs,test}/**/*.ts' --fix",
+    "shopify:deploy": "node --experimental-strip-types shopify-app/deploy.ts",
     "db:migrate": "prisma migrate dev && dotenv -e .env.test -- prisma migrate dev",
     "db:seed": "ts-node --transpile-only prisma/seed.ts",
     "test": "jest --verbose --runInBand",

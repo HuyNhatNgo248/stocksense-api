@@ -15,7 +15,7 @@ export function renderToml(env: TomlEnv): string {
 client_id = "${env.SHOPIFY_APP_CLIENT_ID}"
 name = "${env.SHOPIFY_APP_NAME}"
 application_url = "${env.APP_URL}"
-embedded = false
+embedded = true
 
 [webhooks]
 api_version = "${env.SHOPIFY_API_VERSION}"

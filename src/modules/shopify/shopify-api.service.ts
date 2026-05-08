@@ -127,22 +127,6 @@ export class ShopifyApiService {
     return response.data.inventory_levels;
   }
 
-  async registerWebhook(
-    shop: string,
-    token: string,
-    topic: string,
-    address: string,
-  ): Promise<void> {
-    const url = `https://${shop}/admin/api/2024-01/webhooks.json`;
-    await firstValueFrom(
-      this.http.post(
-        url,
-        { webhook: { topic, address, format: 'json' } },
-        { headers: { 'X-Shopify-Access-Token': token } },
-      ),
-    );
-  }
-
   private async getWithRetry<T>(
     url: string,
     token: string,

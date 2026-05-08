@@ -3,7 +3,7 @@
 export interface TomlEnv {
   SHOPIFY_APP_CLIENT_ID: string;
   SHOPIFY_APP_NAME: string;
-  SHOPIFY_APP_URL: string;
+  APP_URL: string;
   SHOPIFY_API_VERSION: string;
 }
 
@@ -14,7 +14,7 @@ export function renderToml(env: TomlEnv): string {
 
 client_id = "${env.SHOPIFY_APP_CLIENT_ID}"
 name = "${env.SHOPIFY_APP_NAME}"
-application_url = "${env.SHOPIFY_APP_URL}"
+application_url = "${env.APP_URL}"
 embedded = false
 
 [webhooks]
@@ -40,6 +40,6 @@ api_version = "${env.SHOPIFY_API_VERSION}"
 scopes = "read_orders,read_all_orders,read_products,read_inventory,read_locations,write_inventory"
 
 [auth]
-redirect_urls = ["${env.SHOPIFY_APP_URL}/api/auth/callback"]
+redirect_urls = ["${env.APP_URL}/api/auth/callback"]
 `;
 }

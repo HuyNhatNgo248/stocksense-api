@@ -69,7 +69,7 @@ class Deployer {
     const keys: (keyof TomlEnv)[] = [
       'SHOPIFY_APP_CLIENT_ID',
       'SHOPIFY_APP_NAME',
-      'SHOPIFY_APP_URL',
+      'APP_URL',
       'SHOPIFY_API_VERSION',
     ];
 

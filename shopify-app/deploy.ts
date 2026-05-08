@@ -51,19 +51,17 @@ class Deployer {
     }
   }
 
-  /** Loads env vars from `shopify-app/.{env}.env`, falling back to `process.env` if the file does not exist. */
+  /** Loads env vars from `shopify-app/.{env}.env`, falling back to root `.env`. */
   private loadEnvVars(env: Env): Record<string, string> {
-    const path = join(__dirname, `.${env}.env`);
-
-    if (existsSync(path)) {
-      console.log(`Loading variables from: ${path}`);
-      return parseEnv(readFileSync(path, 'utf-8'));
+    const envFilePath = join(__dirname, `.${env}.env`);
+    if (existsSync(envFilePath)) {
+      console.log(`Loading variables from: ${envFilePath}`);
+      return parseEnv(readFileSync(envFilePath, 'utf-8'));
     }
 
-    console.warn(
-      `Env file not found: ${path}. Falling back to process environment.`,
-    );
-    return process.env as Record<string, string>;
+    const rootEnvPath = join(this.root, '.env');
+    console.log(`Loading variables from: ${rootEnvPath}`);
+    return parseEnv(readFileSync(rootEnvPath, 'utf-8'));
   }
 
   /** Extracts and validates all vars required by the TOML template, throwing on the first missing key. */

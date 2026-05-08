@@ -12,9 +12,11 @@ export class VelocityService {
       (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
     );
 
-    let velocity = sorted[0].unitsSold;
+    const seedWindow = sorted.slice(0, 14);
+    let velocity =
+      seedWindow.reduce((sum, d) => sum + d.unitsSold, 0) / seedWindow.length;
 
-    for (let i = 1; i < sorted.length; i++) {
+    for (let i = seedWindow.length; i < sorted.length; i++) {
       velocity = this.ALPHA * sorted[i].unitsSold + (1 - this.ALPHA) * velocity;
     }
 

@@ -22,7 +22,7 @@ export class ShopifyHmacGuard implements CanActivate {
 
     const digest = createHmac(
       'sha256',
-      this.config.getOrThrow('SHOPIFY_API_SECRET'),
+      this.config.getOrThrow('SHOPIFY_APP_CLIENT_SECRET'),
     )
       .update(req.rawBody)
       .digest('base64');

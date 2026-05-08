@@ -61,8 +61,8 @@ export class ForecastCronService {
       );
       const status = this.reorderService.deriveStatus(
         product.currentStock,
+        safetyStock,
         reorderPoint,
-        daysOfStockRemaining,
       );
 
       return {

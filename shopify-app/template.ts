@@ -40,6 +40,6 @@ api_version = "${env.SHOPIFY_API_VERSION}"
 scopes = "read_orders,read_all_orders,read_products,read_inventory,read_locations,write_inventory"
 
 [auth]
-redirect_urls = ["${env.SHOPIFY_APP_URL}"]
+redirect_urls = ["${env.SHOPIFY_APP_URL}/api/auth/callback"]
 `;
 }

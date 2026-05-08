@@ -29,11 +29,10 @@ export class ReorderService {
 
   deriveStatus(
     currentStock: number,
+    safetyStock: number,
     reorderPoint: number,
-    daysRemaining: number | null,
   ): ForecastStatus {
-    if (daysRemaining !== null && daysRemaining <= 7)
-      return ForecastStatus.CRITICAL;
+    if (currentStock <= safetyStock) return ForecastStatus.CRITICAL;
     if (currentStock <= reorderPoint) return ForecastStatus.REORDER;
     return ForecastStatus.OK;
   }

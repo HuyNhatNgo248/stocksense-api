@@ -15,9 +15,10 @@ model Shop {
   timezone      String?
   alertsEnabled Boolean   @default(true)
   alertEmail    String?
-  installedAt   DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  products      Product[]
+  installedAt      DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  products         Product[]
+  metricsSnapshots MetricsSnapshot[]
 
   @@map("shops")
 }
@@ -70,6 +71,22 @@ model Forecast {
   product              Product        @relation(fields: [productId], references: [id], onDelete: Cascade)
 
   @@map("forecasts")
+}
+
+model MetricsSnapshot {
+  id               String   @id @default(uuid())
+  shopId           String
+  snapshotDate     DateTime @db.Date
+  critical         Int
+  reorder          Int
+  ok               Int
+  total            Int
+  forecastAccuracy Float?
+  createdAt        DateTime @default(now())
+  shop             Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+
+  @@unique([shopId, snapshotDate])
+  @@map("metrics_snapshots")
 }
 
 model PurchaseOrder {

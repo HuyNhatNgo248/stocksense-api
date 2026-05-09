@@ -91,6 +91,26 @@ export class ForecastCronService {
       ),
     );
 
+    const statusCounts = upserts.reduce(
+      (acc, u) => {
+        const key = u.status.toLowerCase() as 'ok' | 'reorder' | 'critical';
+        acc[key]++;
+        acc.total++;
+        return acc;
+      },
+      { ok: 0, reorder: 0, critical: 0, total: 0 },
+    );
+    const avgAccuracy =
+      upserts.length > 0
+        ? upserts.reduce((sum, u) => sum + u.forecastAccuracy, 0) /
+          upserts.length
+        : null;
+
+    await this.forecastService.saveSnapshot(shopId, {
+      ...statusCounts,
+      forecastAccuracy: avgAccuracy,
+    });
+
     this.logger.log(
       `Forecasts updated for shop ${shopDomain}: ${products.length} products`,
     );

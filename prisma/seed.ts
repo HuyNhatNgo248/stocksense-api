@@ -1,96 +1,165 @@
-import { PrismaService } from '../src/database/prisma.service';
-import { subDays } from 'date-fns';
+import axios from 'axios';
+import { subDays, startOfDay } from 'date-fns';
+import { PrismaClient } from '@prisma/client';
 
-const prisma = new PrismaService();
+const prisma = new PrismaClient();
 
-interface VariantSeed {
-  shopifyProductId: string;
-  shopifyVariantId: string;
+const SHOP_DOMAIN = 'stocksense-dev-chm95wjf.myshopify.com';
+const API_VERSION = '2024-01';
+const DAYS = 90;
+
+interface ShopifyVariant {
+  id: number;
   title: string;
   sku: string;
-  currentStock: number;
-  leadTimeDays: number;
+  inventory_quantity: number;
+}
+
+interface ShopifyProduct {
+  id: number;
+  title: string;
+  variants: ShopifyVariant[];
+}
+
+type SalesProfile = 'steady' | 'growing' | 'volatile' | 'slow';
+
+function generateSales(profile: SalesProfile): number[] {
+  const days = Array.from({ length: DAYS }, (_, i) => i);
+
+  switch (profile) {
+    case 'steady': {
+      const base = 3 + Math.random() * 5;
+      return days.map(() =>
+        Math.max(0, Math.round(base + (Math.random() - 0.5) * base * 0.4)),
+      );
+    }
+    case 'growing': {
+      const start = 1 + Math.random() * 3;
+      return days.map((i) => {
+        const trend = start + (i / DAYS) * start * 2;
+        return Math.max(
+          0,
+          Math.round(trend + (Math.random() - 0.5) * trend * 0.5),
+        );
+      });
+    }
+    case 'volatile': {
+      const base = 4 + Math.random() * 4;
+      return days.map(() => {
+        const spike = Math.random() < 0.15 ? base * 3 : 0;
+        return Math.max(
+          0,
+          Math.round(base + spike + (Math.random() - 0.5) * base),
+        );
+      });
+    }
+    case 'slow': {
+      return days.map(() =>
+        Math.random() < 0.3 ? Math.ceil(Math.random() * 2) : 0,
+      );
+    }
+  }
+}
+
+async function fetchProducts(token: string): Promise<ShopifyProduct[]> {
+  const url = `https://${SHOP_DOMAIN}/admin/api/${API_VERSION}/products.json`;
+  const { data } = await axios.get<{ products: ShopifyProduct[] }>(url, {
+    headers: { 'X-Shopify-Access-Token': token },
+    params: { limit: 250, fields: 'id,title,variants' },
+  });
+  return data.products;
 }
 
 async function main(): Promise<void> {
-  const shop = await prisma.shop.upsert({
-    where: { domain: 'dev-store.myshopify.com' },
+  const shop = await prisma.shop.findUnique({ where: { domain: SHOP_DOMAIN } });
+
+  const token = shop?.accessToken ?? process.env.SHOPIFY_DEV_TOKEN;
+  if (!token) {
+    console.error(
+      `No access token found for ${SHOP_DOMAIN}.\n` +
+        `Either install the app on the dev store, or set SHOPIFY_DEV_TOKEN=<token> and re-run.`,
+    );
+    process.exit(1);
+  }
+
+  const seededShop = await prisma.shop.upsert({
+    where: { domain: SHOP_DOMAIN },
     update: {},
     create: {
-      domain: 'dev-store.myshopify.com',
-      accessToken: 'dev-token',
-      timezone: 'Asia/Tokyo',
+      domain: SHOP_DOMAIN,
+      accessToken: token,
+      timezone: 'UTC',
       alertEmail: 'dev@test.com',
     },
   });
 
-  const variants: VariantSeed[] = [
-    {
-      shopifyProductId: 'prod_001',
-      shopifyVariantId: 'var_001',
-      title: 'Reef Fins — S',
-      sku: 'RFIN-S-001',
-      currentStock: 12,
-      leadTimeDays: 7,
-    },
-    {
-      shopifyProductId: 'prod_001',
-      shopifyVariantId: 'var_002',
-      title: 'Reef Fins — M',
-      sku: 'RFIN-M-002',
-      currentStock: 34,
-      leadTimeDays: 7,
-    },
-    {
-      shopifyProductId: 'prod_002',
-      shopifyVariantId: 'var_003',
-      title: 'Neoprene Gloves — M',
-      sku: 'NGLO-M-003',
-      currentStock: 8,
-      leadTimeDays: 10,
-    },
-    {
-      shopifyProductId: 'prod_003',
-      shopifyVariantId: 'var_004',
-      title: 'Surf Wax — Tropical',
-      sku: 'SWAX-TR-004',
-      currentStock: 45,
-      leadTimeDays: 5,
-    },
-    {
-      shopifyProductId: 'prod_004',
-      shopifyVariantId: 'var_005',
-      title: 'Boardshorts — L',
-      sku: 'BSHRT-L-005',
-      currentStock: 92,
-      leadTimeDays: 12,
-    },
-  ];
+  console.log(`Fetching products from ${SHOP_DOMAIN}...`);
+  const products = await fetchProducts(token);
+  console.log(
+    `Found ${products.length} product(s) with ${products.reduce((n, p) => n + p.variants.length, 0)} variant(s)`,
+  );
 
-  for (const v of variants) {
-    const product = await prisma.product.upsert({
-      where: {
-        shopId_shopifyVariantId: {
-          shopId: shop.id,
-          shopifyVariantId: v.shopifyVariantId,
+  const profiles: SalesProfile[] = ['steady', 'growing', 'volatile', 'slow'];
+  let variantCount = 0;
+
+  for (const product of products) {
+    for (const variant of product.variants) {
+      const profile = profiles[variantCount % profiles.length];
+
+      const seededProduct = await prisma.product.upsert({
+        where: {
+          shopId_shopifyVariantId: {
+            shopId: seededShop.id,
+            shopifyVariantId: String(variant.id),
+          },
         },
-      },
-      update: {},
-      create: { shopId: shop.id, ...v },
-    });
+        update: {
+          title:
+            variant.title !== 'Default Title'
+              ? `${product.title} — ${variant.title}`
+              : product.title,
+          sku: variant.sku || `SKU-${variant.id}`,
+          currentStock: Math.max(0, variant.inventory_quantity),
+        },
+        create: {
+          shopId: seededShop.id,
+          shopifyProductId: String(product.id),
+          shopifyVariantId: String(variant.id),
+          title:
+            variant.title !== 'Default Title'
+              ? `${product.title} — ${variant.title}`
+              : product.title,
+          sku: variant.sku || `SKU-${variant.id}`,
+          currentStock: Math.max(0, variant.inventory_quantity),
+          leadTimeDays: 7,
+        },
+      });
 
-    const sales = Array.from({ length: 90 }, (_, i) => ({
-      productId: product.id,
-      date: subDays(new Date(), i),
-      unitsSold: Math.max(0, Math.floor(Math.random() * 8)),
-    }));
+      const salesData = generateSales(profile);
+      const rows = salesData.map((unitsSold, i) => ({
+        productId: seededProduct.id,
+        date: startOfDay(subDays(new Date(), DAYS - 1 - i)),
+        unitsSold,
+      }));
 
-    await prisma.dailySale.createMany({ data: sales, skipDuplicates: true });
+      await prisma.dailySale.createMany({ data: rows, skipDuplicates: true });
+
+      console.log(
+        `  [${profile}] ${seededProduct.title} — ${DAYS} days seeded`,
+      );
+      variantCount++;
+    }
   }
 
-  console.log('Seed complete');
+  console.log(
+    `\nDone. ${variantCount} variant(s) seeded with ${DAYS} days of sales data.`,
+  );
 }
 
 main()
-  .catch(console.error)
+  .catch((err: unknown) => {
+    const e = err as { response?: { data?: unknown }; message?: string };
+    console.error(e?.response?.data ?? e?.message ?? err);
+    process.exit(1);
+  })
   .finally(() => prisma.$disconnect());

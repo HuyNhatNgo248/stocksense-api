@@ -29,7 +29,7 @@ export class ShopifyWebhookController {
     return { received: true };
   }
 
-  @Post('inventory_levels/update')
+  @Post('inventoryLevels/update')
   @HttpCode(200)
   async handleInventoryUpdate(
     @Body() body: ShopifyInventoryLevel,

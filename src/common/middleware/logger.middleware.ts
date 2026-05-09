@@ -22,7 +22,15 @@ export function loggerMiddleware(
         : status >= 400
           ? chalk.yellowBright.bold(status)
           : chalk.greenBright.bold(status);
-    logger.log(`${method} ${url} ${code} ${duration}`);
+    const line = `${method} ${url} ${code} ${duration}`;
+    if (status >= 500) {
+      logger.error(line);
+    } else if (status >= 400) {
+      logger.warn(line);
+    } else {
+      logger.log(line);
+    }
   });
+
   next();
 }

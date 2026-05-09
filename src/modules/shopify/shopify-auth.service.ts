@@ -23,8 +23,31 @@ export class ShopifyAuthService {
     @InjectQueue('order-sync') private readonly syncQueue: Queue,
   ) {}
 
-  async handleCallback(query: CallbackQueryDto): Promise<string> {
-    this.verifyCallbackHmac(query);
+  async isInstalled(shop: string): Promise<boolean> {
+    const existing = await this.prisma.shop.findUnique({
+      where: { domain: shop },
+    });
+    return !!existing;
+  }
+
+  buildInstallUrl(shop: string): string {
+    const redirectUri = this.config.getOrThrow<string>('FRONTEND_URL');
+    const apiKey = this.config.getOrThrow<string>('SHOPIFY_APP_CLIENT_ID');
+    const nonce = Math.random().toString(36).substring(2);
+
+    return (
+      `https://${shop}/admin/oauth/authorize` +
+      `?client_id=${apiKey}` +
+      `&redirect_uri=${encodeURIComponent(redirectUri)}` +
+      `&state=${nonce}`
+    );
+  }
+
+  async handleCallback(
+    query: CallbackQueryDto,
+    rawQuery: Record<string, string>,
+  ): Promise<string> {
+    this.verifyCallbackHmac(rawQuery);
 
     const accessToken = await this.exchangeToken(query.shop, query.code);
     const isNew = await this.saveShop(query.shop, accessToken);
@@ -41,20 +64,24 @@ export class ShopifyAuthService {
     return `https://${query.shop}/admin/apps/${apiKey}`;
   }
 
-  private verifyCallbackHmac(query: CallbackQueryDto): void {
-    const { hmac, ...rest } = query;
+  private verifyCallbackHmac(rawQuery: Record<string, string>): void {
+    const { hmac, ...rest } = rawQuery;
 
     const message = Object.entries(rest)
+      .filter(([, v]) => v !== undefined)
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([k, v]) => `${k}=${v}`)
       .join('&');
 
-    const digest = createHmac(
-      'sha256',
-      this.config.getOrThrow<string>('SHOPIFY_APP_CLIENT_SECRET'),
-    )
-      .update(message)
-      .digest('hex');
+    const secret = this.config.getOrThrow<string>('SHOPIFY_APP_CLIENT_SECRET');
+    const digest = createHmac('sha256', secret).update(message).digest('hex');
+
+    console.log('HMAC debug', {
+      message,
+      digest,
+      expected: hmac,
+      rawKeys: Object.keys(rawQuery),
+    });
 
     if (digest !== hmac) {
       throw new UnauthorizedException('Invalid OAuth HMAC');

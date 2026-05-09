@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { Forecast, ForecastStatus, Prisma } from '@prisma/client';
 import { startOfDay, subDays, startOfMonth } from 'date-fns';
 import { PrismaService } from '../../database/prisma.service';
+import { VelocityService, VelocityPoint } from './velocity.service';
 
 export type ForecastWithProduct = Prisma.ForecastGetPayload<{
   include: {
@@ -34,6 +35,14 @@ export interface MetricSummary {
   delta: MetricDelta;
 }
 
+export interface PaginatedForecasts {
+  data: ForecastWithProduct[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+
 export interface UpsertForecastData {
   productId: string;
   velocityPerDay: number;
@@ -47,29 +56,53 @@ export interface UpsertForecastData {
 
 @Injectable()
 export class ForecastService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly velocityService: VelocityService,
+  ) {}
 
   async getForecastsForShop(
     shopDomain: string,
-  ): Promise<ForecastWithProduct[]> {
-    return this.prisma.forecast.findMany({
-      where: {
-        product: { shop: { domain: shopDomain } },
+    page: number,
+    limit: number,
+    status?: ForecastStatus,
+    search?: string,
+  ): Promise<PaginatedForecasts> {
+    const where: Prisma.ForecastWhereInput = {
+      product: {
+        shop: { domain: shopDomain },
+        ...(search && {
+          OR: [
+            { title: { contains: search, mode: 'insensitive' } },
+            { sku: { contains: search, mode: 'insensitive' } },
+          ],
+        }),
       },
-      include: {
-        product: {
-          select: {
-            id: true,
-            title: true,
-            sku: true,
-            currentStock: true,
-            leadTimeDays: true,
-            shopifyVariantId: true,
+      ...(status && { status }),
+    };
+    const [data, total] = await Promise.all([
+      this.prisma.forecast.findMany({
+        where,
+        include: {
+          product: {
+            select: {
+              id: true,
+              title: true,
+              sku: true,
+              currentStock: true,
+              leadTimeDays: true,
+              shopifyVariantId: true,
+            },
           },
         },
-      },
-      orderBy: [{ status: 'asc' }, { daysOfStockRemaining: 'asc' }],
-    });
+        orderBy: [{ status: 'asc' }, { daysOfStockRemaining: 'asc' }],
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+      this.prisma.forecast.count({ where }),
+    ]);
+
+    return { data, total, page, limit, totalPages: Math.ceil(total / limit) };
   }
 
   async getForecastByVariant(
@@ -218,6 +251,28 @@ export class ForecastService {
         forecastAccuracy: summary.forecastAccuracy,
       },
     });
+  }
+
+  async getVelocityHistory(
+    shopDomain: string,
+    variantId: string,
+  ): Promise<VelocityPoint[]> {
+    const product = await this.prisma.product.findFirst({
+      where: {
+        shopifyVariantId: variantId,
+        shop: { domain: shopDomain },
+      },
+      include: {
+        dailySales: {
+          where: { date: { gte: subDays(new Date(), 44) } },
+          orderBy: { date: 'asc' },
+        },
+      },
+    });
+
+    if (!product) return [];
+
+    return this.velocityService.calculateEWMASeries(product.dailySales);
   }
 
   async upsertForecast(data: UpsertForecastData): Promise<Forecast> {

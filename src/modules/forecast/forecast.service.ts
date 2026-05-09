@@ -21,7 +21,7 @@ export interface MetricSummary {
   total: number;
   critical: number;
   reorder: number;
-  ok: number;
+  forecastAccuracy: number | null;
 }
 
 export interface UpsertForecastData {
@@ -31,6 +31,7 @@ export interface UpsertForecastData {
   safetyStock: number;
   reorderPoint: number;
   daysOfStockRemaining: number | null;
+  forecastAccuracy: number;
   status: ForecastStatus;
 }
 
@@ -88,20 +89,31 @@ export class ForecastService {
   }
 
   async getMetricSummary(shopDomain: string): Promise<MetricSummary> {
-    const counts = await this.prisma.forecast.groupBy({
-      by: ['status'],
-      where: {
-        product: { shop: { domain: shopDomain } },
-      },
-      _count: { status: true },
-    });
+    const where = { product: { shop: { domain: shopDomain } } };
 
-    const result: MetricSummary = { total: 0, critical: 0, reorder: 0, ok: 0 };
+    const [counts, agg] = await Promise.all([
+      this.prisma.forecast.groupBy({
+        by: ['status'],
+        where,
+        _count: { status: true },
+      }),
+      this.prisma.forecast.aggregate({
+        where,
+        _avg: { forecastAccuracy: true },
+      }),
+    ]);
+
+    const result: MetricSummary = {
+      total: 0,
+      critical: 0,
+      reorder: 0,
+      forecastAccuracy: agg._avg.forecastAccuracy,
+    };
 
     for (const row of counts) {
       const key = row.status.toLowerCase() as keyof Omit<
         MetricSummary,
-        'total'
+        'total' | 'forecastAccuracy'
       >;
       result[key] = row._count.status;
       result.total += row._count.status;

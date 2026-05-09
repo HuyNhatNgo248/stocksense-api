@@ -31,7 +31,7 @@ export class ShopifyAuthService {
   }
 
   buildInstallUrl(shop: string): string {
-    const redirectUri = this.config.getOrThrow<string>('FRONTEND_URL');
+    const redirectUri = `${this.config.getOrThrow<string>('FRONTEND_URL')}/api/auth/callback`;
     const apiKey = this.config.getOrThrow<string>('SHOPIFY_APP_CLIENT_ID');
     const nonce = Math.random().toString(36).substring(2);
 

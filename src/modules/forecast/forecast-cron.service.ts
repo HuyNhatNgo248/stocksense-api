@@ -65,6 +65,10 @@ export class ForecastCronService {
         reorderPoint,
       );
 
+      const forecastAccuracy = this.velocityService.calculateAccuracy(
+        product.dailySales,
+      );
+
       return {
         productId: product.id,
         velocityPerDay: velocity,
@@ -72,6 +76,7 @@ export class ForecastCronService {
         safetyStock,
         reorderPoint,
         daysOfStockRemaining,
+        forecastAccuracy,
         status,
       };
     });

@@ -63,6 +63,7 @@ model Forecast {
   safetyStock          Float
   reorderPoint         Float
   daysOfStockRemaining Int?
+  forecastAccuracy     Float?
   status               ForecastStatus @default(OK)
   calculatedAt         DateTime       @default(now())
   updatedAt            DateTime       @updatedAt

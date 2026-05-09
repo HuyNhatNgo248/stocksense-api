@@ -23,19 +23,6 @@ export class ShopifyAuthService {
     @InjectQueue('order-sync') private readonly syncQueue: Queue,
   ) {}
 
-  buildInstallUrl(shop: string): string {
-    const redirectUri = `${this.config.getOrThrow<string>('APP_URL')}/api/auth/callback`;
-    const apiKey = this.config.getOrThrow<string>('SHOPIFY_APP_CLIENT_ID');
-    const nonce = Math.random().toString(36).substring(2);
-
-    return (
-      `https://${shop}/admin/oauth/authorize` +
-      `?client_id=${apiKey}` +
-      `&redirect_uri=${redirectUri}` +
-      `&state=${nonce}`
-    );
-  }
-
   async handleCallback(query: CallbackQueryDto): Promise<string> {
     this.verifyCallbackHmac(query);
 

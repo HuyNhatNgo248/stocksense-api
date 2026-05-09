@@ -4,6 +4,7 @@ import { ReorderService } from './reorder.service';
 import { ForecastService } from './forecast.service';
 import { ForecastCronService } from './forecast-cron.service';
 import { ForecastController } from './forecast.controller';
+import { SessionGuard } from '../../common/guards/session.guard';
 
 @Module({
   controllers: [ForecastController],
@@ -12,6 +13,7 @@ import { ForecastController } from './forecast.controller';
     ReorderService,
     ForecastService,
     ForecastCronService,
+    SessionGuard,
   ],
   exports: [ForecastService],
 })

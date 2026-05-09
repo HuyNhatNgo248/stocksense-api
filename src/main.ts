@@ -4,7 +4,6 @@ import { ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { AppModule } from './app.module';
 import { loggerMiddleware } from './common/middleware/logger.middleware';
-import { createProxyMiddleware } from 'http-proxy-middleware';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
@@ -29,14 +28,6 @@ async function bootstrap() {
   });
 
   app.setGlobalPrefix('api');
-
-  const frontendUrl = config.getOrThrow<string>('FRONTEND_URL');
-  app.use(
-    createProxyMiddleware({
-      target: frontendUrl,
-      changeOrigin: true,
-    }),
-  );
 
   await app.listen(config.get<number>('PORT', 3000));
 }

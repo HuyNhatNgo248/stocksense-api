@@ -4,36 +4,41 @@ import {
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
-import { PrismaClient } from '@prisma/client';
+import { PrismaService } from '../../database/prisma.service';
 import { Request } from 'express';
 
 import type { Shop } from '@prisma/client';
 
-interface ShopRequest extends Request {
+export interface ShopRequest extends Request {
   shop?: Shop;
+  accessToken?: string;
 }
-
-const prisma = new PrismaClient();
 
 @Injectable()
 export class SessionGuard implements CanActivate {
-  constructor() {}
+  constructor(private readonly prisma: PrismaService) {}
 
   async canActivate(ctx: ExecutionContext): Promise<boolean> {
-    const req = ctx.switchToHttp().getRequest<Request>();
+    const req = ctx.switchToHttp().getRequest<ShopRequest>();
+
+    const authHeader = req.headers['authorization'];
+    if (!authHeader?.startsWith('Bearer ')) {
+      throw new UnauthorizedException('Missing access token');
+    }
+
     const shopDomain = req.headers['x-shopify-shop-domain'] as string;
-
-    if (!shopDomain)
+    if (!shopDomain) {
       throw new UnauthorizedException('Missing shop domain header');
+    }
 
-    const shop = await prisma.shop.findUnique({
+    const shop = await this.prisma.shop.findUnique({
       where: { domain: shopDomain },
     });
 
     if (!shop) throw new UnauthorizedException('Shop not found');
 
-    (req as ShopRequest).shop = shop;
-
+    req.shop = shop;
+    req.accessToken = authHeader.slice(7);
     return true;
   }
 }

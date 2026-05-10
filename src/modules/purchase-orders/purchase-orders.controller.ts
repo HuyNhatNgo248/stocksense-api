@@ -25,6 +25,7 @@ import {
   PurchaseOrderWithLineItems,
   SuggestedPoLine,
 } from './purchase-orders.service';
+import { ShopCacheService, TTL } from '../../cache/shop-cache.service';
 
 import type { AuthenticatedRequest } from '../../common/types/authenticated-request.interface';
 
@@ -63,7 +64,10 @@ export class UpdatePoStatusDto {
 @Controller('purchase-orders')
 @UseGuards(SessionGuard)
 export class PurchaseOrdersController {
-  constructor(private readonly poService: PurchaseOrdersService) {}
+  constructor(
+    private readonly poService: PurchaseOrdersService,
+    private readonly shopCache: ShopCacheService,
+  ) {}
 
   // GET /api/purchase-orders
   @Get()
@@ -78,7 +82,15 @@ export class PurchaseOrdersController {
   async getSuggested(
     @Req() req: AuthenticatedRequest,
   ): Promise<SuggestedPoLine[]> {
-    return this.poService.generateSuggestedPo(req.shop.domain);
+    const cacheKey = `${req.shop.domain}:pos:suggested`;
+
+    const cached = await this.shopCache.get<SuggestedPoLine[]>(cacheKey);
+    if (cached) return cached;
+
+    const result = await this.poService.generateSuggestedPo(req.shop.domain);
+    await this.shopCache.set(req.shop.domain, cacheKey, result, TTL.SUGGESTED_PO);
+
+    return result;
   }
 
   // GET /api/purchase-orders/:id

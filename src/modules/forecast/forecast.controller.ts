@@ -19,6 +19,7 @@ import {
 import { VelocityPoint } from './velocity.service';
 import { ForecastCronService } from './forecast-cron.service';
 import { SessionGuard } from '../../common/guards/session.guard';
+import { ShopCacheService, TTL } from '../../cache/shop-cache.service';
 
 import type { AuthenticatedRequest } from '../../common/types/authenticated-request.interface';
 
@@ -28,6 +29,7 @@ export class ForecastController {
   constructor(
     private readonly forecastService: ForecastService,
     private readonly forecastCronService: ForecastCronService,
+    private readonly shopCache: ShopCacheService,
   ) {}
 
   // GET /api/forecasts?page=1&limit=20&status=CRITICAL&search=eva
@@ -50,23 +52,45 @@ export class ForecastController {
       parsedStatus = upper as ForecastStatus;
     }
 
-    return this.forecastService.getForecastsForShop(
+    const trimmedSearch = search?.trim() || undefined;
+    const cacheKey = `${req.shop.domain}:forecasts:list:p${page}:l${limit}:s${parsedStatus ?? ''}:q${trimmedSearch ?? ''}`;
+
+    const cached = await this.shopCache.get<PaginatedForecasts>(cacheKey);
+    if (cached) return cached;
+
+    const result = await this.forecastService.getForecastsForShop(
       req.shop.domain,
       page,
       limit,
       parsedStatus,
-      search?.trim() || undefined,
+      trimmedSearch,
     );
+
+    await this.shopCache.set(
+      req.shop.domain,
+      cacheKey,
+      result,
+      TTL.FORECAST_LIST,
+    );
+
+    return result;
   }
 
   // GET /api/forecasts/metrics
   @Get('metrics')
   async getMetrics(@Req() req: AuthenticatedRequest): Promise<MetricSummary> {
-    return this.forecastService.getMetricSummary(req.shop.domain);
+    const cacheKey = `${req.shop.domain}:forecasts:metrics`;
+
+    const cached = await this.shopCache.get<MetricSummary>(cacheKey);
+    if (cached) return cached;
+
+    const result = await this.forecastService.getMetricSummary(req.shop.domain);
+    await this.shopCache.set(req.shop.domain, cacheKey, result, TTL.METRICS);
+
+    return result;
   }
 
   // GET /api/forecasts/run
-  // Manually trigger forecast recalculation for this shop
   @Get('run')
   async runNow(
     @Req() req: AuthenticatedRequest,
@@ -75,6 +99,7 @@ export class ForecastController {
       req.shop.id,
       req.shop.domain,
     );
+    await this.shopCache.invalidateShop(req.shop.domain);
     return { success: true };
   }
 
@@ -84,7 +109,24 @@ export class ForecastController {
     @Req() req: AuthenticatedRequest,
     @Param('variantId') variantId: string,
   ): Promise<VelocityPoint[]> {
-    return this.forecastService.getVelocityHistory(req.shop.domain, variantId);
+    const cacheKey = `${req.shop.domain}:forecasts:velocity:${variantId}`;
+
+    const cached = await this.shopCache.get<VelocityPoint[]>(cacheKey);
+    if (cached) return cached;
+
+    const result = await this.forecastService.getVelocityHistory(
+      req.shop.domain,
+      variantId,
+    );
+
+    await this.shopCache.set(
+      req.shop.domain,
+      cacheKey,
+      result,
+      TTL.VELOCITY_HISTORY,
+    );
+
+    return result;
   }
 
   // GET /api/forecasts/:variantId

@@ -4,6 +4,7 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { BullModule } from '@nestjs/bull';
 import { HttpModule } from '@nestjs/axios';
 
+import { AppCacheModule } from './cache/cache.module';
 import { DatabaseModule } from './database/database.module';
 import { ShopifyModule } from './modules/shopify/shopify.module';
 import { SyncModule } from './modules/sync/sync.module';
@@ -48,6 +49,7 @@ import { PurchaseOrdersModule } from './modules/purchase-orders/purchase-orders.
       maxRedirects: 3,
     }),
 
+    AppCacheModule,
     DatabaseModule,
     ShopifyModule,
     SyncModule,

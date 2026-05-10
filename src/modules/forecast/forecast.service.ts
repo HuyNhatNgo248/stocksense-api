@@ -91,6 +91,7 @@ export class ForecastService {
               sku: true,
               currentStock: true,
               leadTimeDays: true,
+              shopifyProductId: true,
               shopifyVariantId: true,
             },
           },

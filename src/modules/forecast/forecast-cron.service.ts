@@ -5,6 +5,7 @@ import { PrismaService } from '../../database/prisma.service';
 import { VelocityService } from './velocity.service';
 import { ReorderService } from './reorder.service';
 import { ForecastService, UpsertForecastData } from './forecast.service';
+import { SettingsService, SETTINGS_DEFAULTS } from '../settings/settings.service';
 
 @Injectable()
 export class ForecastCronService {
@@ -15,6 +16,7 @@ export class ForecastCronService {
     private readonly velocityService: VelocityService,
     private readonly reorderService: ReorderService,
     private readonly forecastService: ForecastService,
+    private readonly settingsService: SettingsService,
   ) {}
 
   @Cron(CronExpression.EVERY_DAY_AT_2AM)
@@ -33,6 +35,8 @@ export class ForecastCronService {
   }
 
   async runForecastsForShop(shopId: string, shopDomain: string): Promise<void> {
+    const settings = await this.settingsService.getSettings(shopDomain);
+
     const products = await this.prisma.product.findMany({
       where: { shopId },
       include: {
@@ -43,16 +47,23 @@ export class ForecastCronService {
     });
 
     const upserts: UpsertForecastData[] = products.map((product) => {
-      const velocity = this.velocityService.calculateEWMA(product.dailySales);
+      const leadTimeDays = product.leadTimeDays ?? settings.defaultLeadTimeDays;
+      const serviceLevelZ =
+        product.serviceLevelZ ?? settings.defaultServiceLevelZ;
+
+      const velocity = this.velocityService.calculateEWMA(
+        product.dailySales,
+        settings.ewmaAlpha,
+      );
       const stddev = this.velocityService.calculateStddev(product.dailySales);
       const safetyStock = this.reorderService.calculateSafetyStock(
         stddev,
-        product.leadTimeDays,
-        product.serviceLevelZ,
+        leadTimeDays,
+        serviceLevelZ,
       );
       const reorderPoint = this.reorderService.calculateReorderPoint(
         velocity,
-        product.leadTimeDays,
+        leadTimeDays,
         safetyStock,
       );
       const daysOfStockRemaining = this.reorderService.calculateDaysRemaining(
@@ -67,6 +78,7 @@ export class ForecastCronService {
 
       const forecastAccuracy = this.velocityService.calculateAccuracy(
         product.dailySales,
+        settings.ewmaAlpha,
       );
 
       return {

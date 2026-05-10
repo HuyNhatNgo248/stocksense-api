@@ -9,9 +9,9 @@ export interface VelocityPoint {
 
 @Injectable()
 export class VelocityService {
-  private readonly ALPHA = 0.3;
+  private readonly DEFAULT_ALPHA = 0.3;
 
-  calculateEWMA(dailySales: DailySale[]): number {
+  calculateEWMA(dailySales: DailySale[], alpha = this.DEFAULT_ALPHA): number {
     if (!dailySales.length) return 0;
 
     const sorted = [...dailySales].sort(
@@ -23,13 +23,16 @@ export class VelocityService {
       seedWindow.reduce((sum, d) => sum + d.unitsSold, 0) / seedWindow.length;
 
     for (let i = seedWindow.length; i < sorted.length; i++) {
-      velocity = this.ALPHA * sorted[i].unitsSold + (1 - this.ALPHA) * velocity;
+      velocity = alpha * sorted[i].unitsSold + (1 - alpha) * velocity;
     }
 
     return Math.round(velocity * 100) / 100;
   }
 
-  calculateAccuracy(dailySales: DailySale[]): number {
+  calculateAccuracy(
+    dailySales: DailySale[],
+    alpha = this.DEFAULT_ALPHA,
+  ): number {
     if (dailySales.length < 15) return 0;
 
     const sorted = [...dailySales].sort(
@@ -49,7 +52,7 @@ export class VelocityService {
         totalPct += Math.abs(actual - velocity) / actual;
         count++;
       }
-      velocity = this.ALPHA * actual + (1 - this.ALPHA) * velocity;
+      velocity = alpha * actual + (1 - alpha) * velocity;
     }
 
     if (count === 0) return 0;
@@ -71,6 +74,7 @@ export class VelocityService {
   calculateEWMASeries(
     dailySales: DailySale[],
     projectionDays = 7,
+    alpha = this.DEFAULT_ALPHA,
   ): VelocityPoint[] {
     const SEED_DAYS = 14;
     const DISPLAY_DAYS = 30;
@@ -88,7 +92,7 @@ export class VelocityService {
     const series: VelocityPoint[] = [];
     for (let i = 0; i < sorted.length; i++) {
       if (i >= SEED_DAYS) {
-        velocity = this.ALPHA * sorted[i].unitsSold + (1 - this.ALPHA) * velocity;
+        velocity = alpha * sorted[i].unitsSold + (1 - alpha) * velocity;
       }
       series.push({
         date: sorted[i].date.toISOString().slice(0, 10),

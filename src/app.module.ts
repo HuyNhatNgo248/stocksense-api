@@ -12,6 +12,7 @@ import { ForecastModule } from './modules/forecast/forecast.module';
 import { InventoryModule } from './modules/inventory/inventory.module';
 import { AlertModule } from './modules/alert/alert.module';
 import { PurchaseOrdersModule } from './modules/purchase-orders/purchase-orders.module';
+import { SettingsModule } from './modules/settings/settings.module';
 
 @Module({
   imports: [
@@ -57,6 +58,7 @@ import { PurchaseOrdersModule } from './modules/purchase-orders/purchase-orders.
     InventoryModule,
     AlertModule,
     PurchaseOrdersModule,
+    SettingsModule,
   ],
 })
 export class AppModule {}

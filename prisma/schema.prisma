@@ -19,8 +19,22 @@ model Shop {
   updatedAt        DateTime          @updatedAt
   products         Product[]
   metricsSnapshots MetricsSnapshot[]
+  settings         ShopSettings?
 
   @@map("shops")
+}
+
+model ShopSettings {
+  id                   String   @id @default(uuid())
+  shopId               String   @unique
+  ewmaAlpha            Float    @default(0.3)
+  defaultLeadTimeDays  Float    @default(14)
+  defaultServiceLevelZ Float    @default(1.645)
+  syncFrequencyHours   Int      @default(12)
+  updatedAt            DateTime @updatedAt
+  shop                 Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+
+  @@map("shop_settings")
 }
 
 model Product {

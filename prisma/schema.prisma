@@ -20,6 +20,8 @@ model Shop {
   products         Product[]
   metricsSnapshots MetricsSnapshot[]
   settings         ShopSettings?
+  purchaseOrders   PurchaseOrder[]
+  processedOrders  ProcessedOrder[]
 
   @@map("shops")
 }
@@ -112,6 +114,7 @@ model PurchaseOrder {
   createdAt DateTime     @default(now())
   updatedAt DateTime     @updatedAt
   lineItems PoLineItem[]
+  shop      Shop         @relation(fields: [shopId], references: [id], onDelete: Cascade)
 
   @@map("purchase_orders")
 }
@@ -121,6 +124,7 @@ model ProcessedOrder {
   shopId         String
   shopifyOrderId String
   processedAt    DateTime @default(now())
+  shop           Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
 
   @@unique([shopId, shopifyOrderId])
   @@map("processed_orders")

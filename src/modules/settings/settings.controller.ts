@@ -1,4 +1,4 @@
-import { Controller, Get, Patch, Body, UseGuards, Req } from '@nestjs/common';
+import { Controller, Get, Body, UseGuards, Req, Put } from '@nestjs/common';
 import { IsNumber, IsOptional, Min, Max } from 'class-validator';
 import { Type } from 'class-transformer';
 import { SettingsService, ShopSettingsData } from './settings.service';
@@ -48,7 +48,7 @@ export class SettingsController {
   }
 
   // PATCH /api/settings
-  @Patch()
+  @Put()
   async updateSettings(
     @Req() req: AuthenticatedRequest,
     @Body() body: UpdateSettingsDto,

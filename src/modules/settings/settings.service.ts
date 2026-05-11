@@ -9,7 +9,10 @@ export const SETTINGS_DEFAULTS = {
   syncFrequencyHours: 12,
 } as const;
 
-export type ShopSettingsData = Omit<ShopSettings, 'id' | 'shopId' | 'updatedAt'>;
+export type ShopSettingsData = Omit<
+  ShopSettings,
+  'id' | 'shopId' | 'updatedAt'
+>;
 
 @Injectable()
 export class SettingsService {

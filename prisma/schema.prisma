@@ -8,13 +8,13 @@ datasource db {
 }
 
 model Shop {
-  id            String    @id @default(uuid())
-  domain        String    @unique
-  accessToken   String
-  plan          Plan      @default(FREE)
-  timezone      String?
-  alertsEnabled Boolean   @default(true)
-  alertEmail    String?
+  id               String            @id @default(uuid())
+  domain           String            @unique
+  accessToken      String
+  plan             Plan              @default(FREE)
+  timezone         String?
+  alertsEnabled    Boolean           @default(true)
+  alertEmail       String?
   installedAt      DateTime          @default(now())
   updatedAt        DateTime          @updatedAt
   products         Product[]

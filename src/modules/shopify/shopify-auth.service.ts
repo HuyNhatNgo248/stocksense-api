@@ -5,6 +5,7 @@ import { InjectQueue } from '@nestjs/bull';
 import { createHmac } from 'crypto';
 import { firstValueFrom } from 'rxjs';
 import { PrismaService } from '../../database/prisma.service';
+import { SETTINGS_DEFAULTS } from '../settings/settings.service';
 
 import type { Queue } from 'bull';
 import type { CallbackQueryDto } from './shopify-auth.controller';
@@ -110,11 +111,17 @@ export class ShopifyAuthService {
   ): Promise<boolean> {
     const existing = await this.prisma.shop.findUnique({ where: { domain } });
 
-    await this.prisma.shop.upsert({
+    const shop = await this.prisma.shop.upsert({
       where: { domain },
       create: { domain, accessToken },
       update: { accessToken },
     });
+
+    if (!existing) {
+      await this.prisma.shopSettings.create({
+        data: { shopId: shop.id, ...SETTINGS_DEFAULTS },
+      });
+    }
 
     return !existing;
   }

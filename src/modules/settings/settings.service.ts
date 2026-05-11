@@ -24,7 +24,7 @@ export class SettingsService {
       include: { settings: true },
     });
 
-    return shop.settings ?? SETTINGS_DEFAULTS;
+    return shop.settings!;
   }
 
   async updateSettings(

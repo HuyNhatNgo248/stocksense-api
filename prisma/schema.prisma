@@ -47,8 +47,7 @@ model Product {
   title            String
   sku              String
   currentStock     Int         @default(0)
-  leadTimeDays     Float       @default(7)
-  serviceLevelZ    Float       @default(1.65)
+  leadTimeDays     Float       @default(14)
   stockUpdatedAt   DateTime    @default(now())
   createdAt        DateTime    @default(now())
   updatedAt        DateTime    @updatedAt

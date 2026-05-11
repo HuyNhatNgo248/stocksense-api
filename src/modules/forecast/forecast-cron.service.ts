@@ -48,8 +48,7 @@ export class ForecastCronService {
 
     const upserts: UpsertForecastData[] = products.map((product) => {
       const leadTimeDays = product.leadTimeDays ?? settings.defaultLeadTimeDays;
-      const serviceLevelZ =
-        product.serviceLevelZ ?? settings.defaultServiceLevelZ;
+      const serviceLevelZ = settings.defaultServiceLevelZ;
 
       const velocity = this.velocityService.calculateEWMA(
         product.dailySales,

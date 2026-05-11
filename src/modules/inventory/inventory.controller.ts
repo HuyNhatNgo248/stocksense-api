@@ -24,12 +24,6 @@ export class UpdateProductSettingsDto {
   @Min(1)
   @Type(() => Number)
   leadTimeDays?: number;
-
-  @IsOptional()
-  @IsNumber()
-  @Min(1)
-  @Type(() => Number)
-  serviceLevelZ?: number;
 }
 
 @Controller('inventory')

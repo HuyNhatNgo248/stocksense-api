@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { startOfDay, subDays } from 'date-fns';
 import { PrismaService } from '../../database/prisma.service';
+import { ShopCacheService } from '../../cache/shop-cache.service';
 import { ForecastCronService } from '../forecast/forecast-cron.service';
 
 type SalesProfile = 'steady' | 'growing' | 'volatile' | 'slow';
@@ -40,6 +41,7 @@ export class DevService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly forecastCron: ForecastCronService,
+    private readonly shopCache: ShopCacheService,
   ) {}
 
   @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
@@ -74,6 +76,7 @@ export class DevService {
     }
 
     await this.forecastCron.runForecastsForShop(shop.id, shop.domain);
+    await this.shopCache.invalidateShop(shop.domain);
     this.logger.log(
       `[DEV] Simulated day for ${shop.domain}: ${products.length} products updated`,
     );
@@ -109,6 +112,7 @@ export class DevService {
     }
 
     await this.forecastCron.runForecastsForShop(shop.id, shop.domain);
+    await this.shopCache.invalidateShop(shop.domain);
     this.logger.log(
       `[DEV] Seeded ${days} days for ${shop.domain}: ${products.length} products`,
     );

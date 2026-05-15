@@ -133,7 +133,7 @@ Doubling lead time increases safety stock by √2 ≈ 1.41×, not 2×.
 CS = V × lead_time
 ```
 
-**DOW-adjusted formula (used in production):**
+**DOW-adjusted formula (what StockSense actually uses):**
 
 ```text
 CS = Σ_{i=1}^{lead_time} ( V × dow_multiplier[day_of_week(today + i)] )

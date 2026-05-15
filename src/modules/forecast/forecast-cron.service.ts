@@ -41,7 +41,7 @@ export class ForecastCronService {
       where: { shopId },
       include: {
         dailySales: {
-          where: { date: { gte: subDays(new Date(), 90) } },
+          where: { date: { gte: subDays(new Date(), 180) } },
         },
       },
     });
@@ -50,11 +50,22 @@ export class ForecastCronService {
       const leadTimeDays = product.leadTimeDays ?? settings.defaultLeadTimeDays;
       const serviceLevelZ = settings.defaultServiceLevelZ;
 
-      const velocity = this.velocityService.calculateEWMA(
+      const alpha = this.velocityService.findBestAlpha(
         product.dailySales,
         settings.ewmaAlpha,
       );
-      const stddev = this.velocityService.calculateStddev(product.dailySales);
+      const dowMultipliers = this.velocityService.calculateDayOfWeekMultipliers(
+        product.dailySales,
+      );
+
+      const velocity = this.velocityService.calculateEWMA(
+        product.dailySales,
+        alpha,
+      );
+      const stddev = this.velocityService.calculateStddev(
+        product.dailySales,
+        alpha,
+      );
       const safetyStock = this.reorderService.calculateSafetyStock(
         stddev,
         leadTimeDays,
@@ -64,6 +75,7 @@ export class ForecastCronService {
         velocity,
         leadTimeDays,
         safetyStock,
+        dowMultipliers,
       );
       const daysOfStockRemaining = this.reorderService.calculateDaysRemaining(
         product.currentStock,
@@ -74,10 +86,9 @@ export class ForecastCronService {
         safetyStock,
         reorderPoint,
       );
-
       const forecastAccuracy = this.velocityService.calculateAccuracy(
         product.dailySales,
-        settings.ewmaAlpha,
+        alpha,
       );
 
       return {

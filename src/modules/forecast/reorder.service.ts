@@ -11,12 +11,19 @@ export class ReorderService {
     return Math.round(z * stddev * Math.sqrt(leadTimeDays) * 100) / 100;
   }
 
+  // When dowMultipliers are provided, sums DOW-adjusted daily demand over
+  // the lead time window instead of using a flat velocity * days estimate.
   calculateReorderPoint(
     velocity: number,
     leadTimeDays: number,
     safetyStock: number,
+    dowMultipliers?: number[],
   ): number {
-    return Math.round((velocity * leadTimeDays + safetyStock) * 100) / 100;
+    const leadTimeDemand = dowMultipliers
+      ? this.calculateLeadTimeDemand(velocity, leadTimeDays, dowMultipliers)
+      : velocity * leadTimeDays;
+
+    return Math.round((leadTimeDemand + safetyStock) * 100) / 100;
   }
 
   calculateDaysRemaining(
@@ -35,5 +42,20 @@ export class ReorderService {
     if (currentStock <= safetyStock) return ForecastStatus.CRITICAL;
     if (currentStock <= reorderPoint) return ForecastStatus.REORDER;
     return ForecastStatus.OK;
+  }
+
+  private calculateLeadTimeDemand(
+    velocity: number,
+    leadTimeDays: number,
+    dowMultipliers: number[],
+  ): number {
+    const start = new Date();
+    let demand = 0;
+    for (let i = 1; i <= leadTimeDays; i++) {
+      const d = new Date(start);
+      d.setUTCDate(d.getUTCDate() + i);
+      demand += velocity * dowMultipliers[d.getUTCDay()];
+    }
+    return Math.round(demand * 100) / 100;
   }
 }

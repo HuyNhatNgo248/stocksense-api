@@ -10,14 +10,36 @@ export interface VelocityPoint {
 @Injectable()
 export class VelocityService {
   private readonly DEFAULT_ALPHA = 0.3;
+  private readonly ALPHA_CANDIDATES = [
+    0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5,
+  ];
+
+  // Grid-search the alpha that minimises MAPE on this product's history.
+  findBestAlpha(
+    dailySales: DailySale[],
+    fallback = this.DEFAULT_ALPHA,
+  ): number {
+    if (dailySales.length < 28) return fallback;
+
+    const sorted = this.sortByDate(dailySales);
+    let bestAlpha = fallback;
+    let bestMAPE = Infinity;
+
+    for (const alpha of this.ALPHA_CANDIDATES) {
+      const mape = this.computeMAPE(sorted, alpha);
+      if (mape < bestMAPE) {
+        bestMAPE = mape;
+        bestAlpha = alpha;
+      }
+    }
+
+    return bestAlpha;
+  }
 
   calculateEWMA(dailySales: DailySale[], alpha = this.DEFAULT_ALPHA): number {
     if (!dailySales.length) return 0;
 
-    const sorted = [...dailySales].sort(
-      (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
-    );
-
+    const sorted = this.sortByDate(dailySales);
     const seedWindow = sorted.slice(0, 14);
     let velocity =
       seedWindow.reduce((sum, d) => sum + d.unitsSold, 0) / seedWindow.length;
@@ -29,46 +51,52 @@ export class VelocityService {
     return Math.round(velocity * 100) / 100;
   }
 
+  // Exponentially weighted stddev, ignoring zero-sale days.
+  calculateStddev(dailySales: DailySale[], alpha = this.DEFAULT_ALPHA): number {
+    const nonZero = dailySales.filter((d) => d.unitsSold > 0);
+    if (nonZero.length < 2) return 0;
+
+    const sorted = this.sortByDate(nonZero);
+    let mean = sorted[0].unitsSold;
+    let variance = 0;
+
+    for (let i = 1; i < sorted.length; i++) {
+      const diff = sorted[i].unitsSold - mean;
+      mean = alpha * sorted[i].unitsSold + (1 - alpha) * mean;
+      variance = (1 - alpha) * (variance + alpha * diff * diff);
+    }
+
+    return Math.round(Math.sqrt(variance) * 100) / 100;
+  }
+
   calculateAccuracy(
     dailySales: DailySale[],
     alpha = this.DEFAULT_ALPHA,
   ): number {
     if (dailySales.length < 15) return 0;
-
-    const sorted = [...dailySales].sort(
-      (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
-    );
-
-    const seedWindow = sorted.slice(0, 14);
-    let velocity =
-      seedWindow.reduce((sum, d) => sum + d.unitsSold, 0) / seedWindow.length;
-
-    let totalPct = 0;
-    let count = 0;
-
-    for (let i = seedWindow.length; i < sorted.length; i++) {
-      const actual = sorted[i].unitsSold;
-      if (actual > 0) {
-        totalPct += Math.abs(actual - velocity) / actual;
-        count++;
-      }
-      velocity = alpha * actual + (1 - alpha) * velocity;
-    }
-
-    if (count === 0) return 0;
-    const mape = totalPct / count;
+    const sorted = this.sortByDate(dailySales);
+    const mape = this.computeMAPE(sorted, alpha);
+    if (!isFinite(mape)) return 0;
     return Math.round(Math.max(0, (1 - mape) * 100) * 10) / 10;
   }
 
-  calculateStddev(dailySales: DailySale[]): number {
-    if (dailySales.length < 2) return 0;
+  // Returns 7 multipliers (index = getUTCDay()) representing how each
+  // weekday compares to the average day. Used to weight lead-time demand.
+  calculateDayOfWeekMultipliers(dailySales: DailySale[]): number[] {
+    const sums = new Array(7).fill(0);
+    const counts = new Array(7).fill(0);
 
-    const units = dailySales.map((d) => d.unitsSold);
-    const mean = units.reduce((a, b) => a + b, 0) / units.length;
-    const variance =
-      units.reduce((sum, u) => sum + Math.pow(u - mean, 2), 0) / units.length;
+    for (const sale of dailySales) {
+      const dow = new Date(sale.date).getUTCDay();
+      sums[dow] += sale.unitsSold;
+      counts[dow]++;
+    }
 
-    return Math.round(Math.sqrt(variance) * 100) / 100;
+    const avgs = sums.map((s, i) => (counts[i] > 0 ? s / counts[i] : 0));
+    const overall = avgs.reduce((a, b) => a + b, 0) / 7;
+
+    if (overall === 0) return new Array<number>(7).fill(1);
+    return avgs.map((a) => a / overall);
   }
 
   calculateEWMASeries(
@@ -79,10 +107,7 @@ export class VelocityService {
     const SEED_DAYS = 14;
     const DISPLAY_DAYS = 30;
 
-    const sorted = [...dailySales].sort(
-      (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
-    );
-
+    const sorted = this.sortByDate(dailySales);
     if (sorted.length === 0) return [];
 
     const seedEnd = Math.min(SEED_DAYS, sorted.length);
@@ -116,5 +141,33 @@ export class VelocityService {
     }
 
     return displayed;
+  }
+
+  private computeMAPE(sorted: DailySale[], alpha: number): number {
+    if (sorted.length < 15) return Infinity;
+
+    const seedWindow = sorted.slice(0, 14);
+    let velocity =
+      seedWindow.reduce((s, d) => s + d.unitsSold, 0) / seedWindow.length;
+
+    let totalPct = 0;
+    let count = 0;
+
+    for (let i = 14; i < sorted.length; i++) {
+      const actual = sorted[i].unitsSold;
+      if (actual > 0) {
+        totalPct += Math.abs(actual - velocity) / actual;
+        count++;
+      }
+      velocity = alpha * actual + (1 - alpha) * velocity;
+    }
+
+    return count > 0 ? totalPct / count : Infinity;
+  }
+
+  private sortByDate(sales: DailySale[]): DailySale[] {
+    return [...sales].sort(
+      (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
+    );
   }
 }

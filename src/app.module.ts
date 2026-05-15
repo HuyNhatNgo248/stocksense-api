@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { DevModule } from './modules/dev/dev.module';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
 import { BullModule } from '@nestjs/bull';
@@ -59,6 +60,7 @@ import { SettingsModule } from './modules/settings/settings.module';
     AlertModule,
     PurchaseOrdersModule,
     SettingsModule,
+    ...(process.env.NODE_ENV !== 'production' ? [DevModule] : []),
   ],
 })
 export class AppModule {}

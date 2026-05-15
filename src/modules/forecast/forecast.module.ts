@@ -17,6 +17,6 @@ import { SettingsModule } from '../settings/settings.module';
     ForecastCronService,
     SessionGuard,
   ],
-  exports: [ForecastService],
+  exports: [ForecastService, ForecastCronService],
 })
 export class ForecastModule {}

@@ -5,7 +5,7 @@ import { PrismaService } from '../../database/prisma.service';
 import { VelocityService } from './velocity.service';
 import { ReorderService } from './reorder.service';
 import { ForecastService, UpsertForecastData } from './forecast.service';
-import { SettingsService, SETTINGS_DEFAULTS } from '../settings/settings.service';
+import { SettingsService } from '../settings/settings.service';
 
 @Injectable()
 export class ForecastCronService {
@@ -27,9 +27,9 @@ export class ForecastCronService {
       select: { id: true, domain: true },
     });
 
-    for (const shop of shops) {
-      await this.runForecastsForShop(shop.id, shop.domain);
-    }
+    await Promise.all(
+      shops.map((shop) => this.runForecastsForShop(shop.id, shop.domain)),
+    );
 
     this.logger.log('Nightly forecast run complete');
   }

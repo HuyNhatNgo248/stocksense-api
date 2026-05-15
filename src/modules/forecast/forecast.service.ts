@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { Forecast, ForecastStatus, Prisma } from '@prisma/client';
 import { startOfDay, subDays, startOfMonth } from 'date-fns';
 import { PrismaService } from '../../database/prisma.service';
@@ -14,10 +14,21 @@ export type ForecastWithProduct = Prisma.ForecastGetPayload<{
         currentStock: true;
         leadTimeDays: true;
         shopifyVariantId: true;
+        snooze: {
+          select: {
+            expectedArrivalDate: true;
+            snoozedAt: true;
+          };
+        };
       };
     };
   };
 }>;
+
+export type ForecastRow = Omit<ForecastWithProduct, 'product'> & {
+  product: Omit<ForecastWithProduct['product'], 'snooze'>;
+  markOrdered: { expectedArrivalDate: string; snoozedAt: Date } | null;
+};
 
 export interface MetricDelta {
   criticalSinceYesterday: number | null;
@@ -36,7 +47,7 @@ export interface MetricSummary {
 }
 
 export interface PaginatedForecasts {
-  data: ForecastWithProduct[];
+  data: ForecastRow[];
   total: number;
   page: number;
   limit: number;
@@ -52,6 +63,22 @@ export interface UpsertForecastData {
   daysOfStockRemaining: number | null;
   forecastAccuracy: number;
   status: ForecastStatus;
+}
+
+function toForecastRow(raw: ForecastWithProduct): ForecastRow {
+  const { snooze, ...product } = raw.product;
+  return {
+    ...raw,
+    product,
+    markOrdered: snooze
+      ? {
+          expectedArrivalDate: snooze.expectedArrivalDate
+            .toISOString()
+            .split('T')[0],
+          snoozedAt: snooze.snoozedAt,
+        }
+      : null,
+  };
 }
 
 @Injectable()
@@ -93,6 +120,9 @@ export class ForecastService {
               leadTimeDays: true,
               shopifyProductId: true,
               shopifyVariantId: true,
+              snooze: {
+                select: { expectedArrivalDate: true, snoozedAt: true },
+              },
             },
           },
         },
@@ -103,14 +133,20 @@ export class ForecastService {
       this.prisma.forecast.count({ where }),
     ]);
 
-    return { data, total, page, limit, totalPages: Math.ceil(total / limit) };
+    return {
+      data: data.map(toForecastRow),
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
   }
 
   async getForecastByVariant(
     shopDomain: string,
     variantId: string,
-  ): Promise<ForecastWithProduct | null> {
-    return this.prisma.forecast.findFirst({
+  ): Promise<ForecastRow | null> {
+    const row = await this.prisma.forecast.findFirst({
       where: {
         product: {
           shopifyVariantId: variantId,
@@ -126,10 +162,14 @@ export class ForecastService {
             currentStock: true,
             leadTimeDays: true,
             shopifyVariantId: true,
+            snooze: {
+              select: { expectedArrivalDate: true, snoozedAt: true },
+            },
           },
         },
       },
     });
+    return row ? toForecastRow(row) : null;
   }
 
   async getMetricSummary(shopDomain: string): Promise<MetricSummary> {
@@ -274,6 +314,41 @@ export class ForecastService {
     if (!product) return [];
 
     return this.velocityService.calculateEWMASeries(product.dailySales);
+  }
+
+  async markOrdered(
+    shopDomain: string,
+    variantId: string,
+    expectedArrivalDate: Date,
+  ): Promise<void> {
+    const product = await this.prisma.product.findFirst({
+      where: { shopifyVariantId: variantId, shop: { domain: shopDomain } },
+      select: { id: true, shopId: true },
+    });
+    if (!product) throw new NotFoundException('Product not found');
+
+    await this.prisma.alertSnooze.upsert({
+      where: { productId: product.id },
+      create: {
+        productId: product.id,
+        shopId: product.shopId,
+        expectedArrivalDate,
+        snoozedAt: new Date(),
+      },
+      update: { expectedArrivalDate, snoozedAt: new Date() },
+    });
+  }
+
+  async unmarkOrdered(shopDomain: string, variantId: string): Promise<void> {
+    const product = await this.prisma.product.findFirst({
+      where: { shopifyVariantId: variantId, shop: { domain: shopDomain } },
+      select: { id: true },
+    });
+    if (!product) throw new NotFoundException('Product not found');
+
+    await this.prisma.alertSnooze.deleteMany({
+      where: { productId: product.id },
+    });
   }
 
   async upsertForecast(data: UpsertForecastData): Promise<Forecast> {

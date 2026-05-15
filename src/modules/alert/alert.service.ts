@@ -33,7 +33,13 @@ export class AlertService {
 
     const alertItems = await this.prisma.forecast.findMany({
       where: {
-        product: { shop: { domain: shopDomain } },
+        product: {
+          shop: { domain: shopDomain },
+          OR: [
+            { snooze: null },
+            { snooze: { expectedArrivalDate: { lt: new Date() } } },
+          ],
+        },
         status: { in: [ForecastStatus.CRITICAL, ForecastStatus.REORDER] },
       },
       include: {

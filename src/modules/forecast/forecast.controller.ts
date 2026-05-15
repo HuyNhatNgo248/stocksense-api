@@ -1,18 +1,23 @@
 import {
   Controller,
   Get,
+  Put,
+  Delete,
   Param,
   Query,
+  Body,
   ParseIntPipe,
   DefaultValuePipe,
   BadRequestException,
   UseGuards,
   Req,
+  HttpCode,
+  HttpStatus,
 } from '@nestjs/common';
 import { ForecastStatus } from '@prisma/client';
 import {
   ForecastService,
-  ForecastWithProduct,
+  ForecastRow,
   MetricSummary,
   PaginatedForecasts,
 } from './forecast.service';
@@ -129,12 +134,42 @@ export class ForecastController {
     return result;
   }
 
+  // PUT /api/forecasts/:variantId/mark-ordered
+  @Put(':variantId/mark-ordered')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async markOrdered(
+    @Req() req: AuthenticatedRequest,
+    @Param('variantId') variantId: string,
+    @Body() body: { expectedArrivalDate: string },
+  ): Promise<void> {
+    if (!body.expectedArrivalDate) {
+      throw new BadRequestException('expectedArrivalDate is required');
+    }
+    const date = new Date(body.expectedArrivalDate);
+    if (isNaN(date.getTime())) {
+      throw new BadRequestException('expectedArrivalDate must be a valid date');
+    }
+    await this.forecastService.markOrdered(req.shop.domain, variantId, date);
+    await this.shopCache.invalidateShop(req.shop.domain);
+  }
+
+  // DELETE /api/forecasts/:variantId/mark-ordered
+  @Delete(':variantId/mark-ordered')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async unmarkOrdered(
+    @Req() req: AuthenticatedRequest,
+    @Param('variantId') variantId: string,
+  ): Promise<void> {
+    await this.forecastService.unmarkOrdered(req.shop.domain, variantId);
+    await this.shopCache.invalidateShop(req.shop.domain);
+  }
+
   // GET /api/forecasts/:variantId
   @Get(':variantId')
   async getOne(
     @Req() req: AuthenticatedRequest,
     @Param('variantId') variantId: string,
-  ): Promise<ForecastWithProduct | null> {
+  ): Promise<ForecastRow | null> {
     return this.forecastService.getForecastByVariant(
       req.shop.domain,
       variantId,

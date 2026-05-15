@@ -22,6 +22,7 @@ model Shop {
   settings         ShopSettings?
   purchaseOrders   PurchaseOrder[]
   processedOrders  ProcessedOrder[]
+  alertSnoozes     AlertSnooze[]
 
   @@map("shops")
 }
@@ -40,20 +41,21 @@ model ShopSettings {
 }
 
 model Product {
-  id               String      @id @default(uuid())
+  id               String       @id @default(uuid())
   shopId           String
   shopifyProductId String
   shopifyVariantId String
   title            String
   sku              String
-  currentStock     Int         @default(0)
-  leadTimeDays     Float       @default(14)
-  stockUpdatedAt   DateTime    @default(now())
-  createdAt        DateTime    @default(now())
-  updatedAt        DateTime    @updatedAt
+  currentStock     Int          @default(0)
+  leadTimeDays     Float        @default(14)
+  stockUpdatedAt   DateTime     @default(now())
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
   dailySales       DailySale[]
   forecast         Forecast?
-  shop             Shop        @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  snooze           AlertSnooze?
+  shop             Shop         @relation(fields: [shopId], references: [id], onDelete: Cascade)
 
   @@unique([shopId, shopifyVariantId])
   @@map("products")
@@ -138,6 +140,18 @@ model PoLineItem {
   purchaseOrder   PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
 
   @@map("po_line_items")
+}
+
+model AlertSnooze {
+  id                  String   @id @default(uuid())
+  productId           String   @unique
+  shopId              String
+  expectedArrivalDate DateTime @db.Date
+  snoozedAt           DateTime @default(now())
+  product             Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  shop                Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+
+  @@map("alert_snoozes")
 }
 
 enum Plan {

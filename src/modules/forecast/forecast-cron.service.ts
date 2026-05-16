@@ -122,11 +122,8 @@ export class ForecastCronService {
       },
       { ok: 0, reorder: 0, critical: 0, total: 0 },
     );
-    const avgAccuracy =
-      upserts.length > 0
-        ? upserts.reduce((sum, u) => sum + u.forecastAccuracy, 0) /
-          upserts.length
-        : null;
+
+    const avgAccuracy = this.forecastService.averageAccuracy(upserts);
 
     await this.forecastService.saveSnapshot(shopId, {
       ...statusCounts,

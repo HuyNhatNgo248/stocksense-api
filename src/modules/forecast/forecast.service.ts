@@ -351,6 +351,13 @@ export class ForecastService {
     });
   }
 
+  averageAccuracy(upserts: UpsertForecastData[]): number | null {
+    if (upserts.length === 0) return null;
+    return (
+      upserts.reduce((sum, u) => sum + u.forecastAccuracy, 0) / upserts.length
+    );
+  }
+
   async upsertForecast(data: UpsertForecastData): Promise<Forecast> {
     return this.prisma.forecast.upsert({
       where: { productId: data.productId },

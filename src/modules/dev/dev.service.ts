@@ -83,7 +83,7 @@ export class DevService {
     return { productsUpdated: products.length };
   }
 
-  async seedHistoricalSales(days = 90): Promise<{ productsSeeded: number }> {
+  async seedHistoricalSales(days = 180): Promise<{ productsSeeded: number }> {
     const shop = await this.getDevShop();
     if (!shop) return { productsSeeded: 0 };
 

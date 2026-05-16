@@ -4,6 +4,7 @@ import { startOfDay, subDays, startOfMonth } from 'date-fns';
 import { PrismaService } from '../../database/prisma.service';
 import { VelocityService, VelocityPoint } from './velocity.service';
 import { ReorderService } from './reorder.service';
+import { SettingsService } from '../settings/settings.service';
 
 export type ForecastWithProduct = Prisma.ForecastGetPayload<{
   include: {
@@ -29,6 +30,7 @@ export type ForecastWithProduct = Prisma.ForecastGetPayload<{
 export type ForecastRow = Omit<ForecastWithProduct, 'product'> & {
   product: Omit<ForecastWithProduct['product'], 'snooze'>;
   markOrdered: { expectedArrivalDate: string; snoozedAt: Date } | null;
+  suggestedOrderQty: number;
 };
 
 export interface MetricDelta {
@@ -66,8 +68,19 @@ export interface UpsertForecastData {
   status: ForecastStatus;
 }
 
-function toForecastRow(raw: ForecastWithProduct): ForecastRow {
+function toForecastRow(
+  raw: ForecastWithProduct,
+  reviewPeriodDays: number,
+): ForecastRow {
   const { snooze, ...product } = raw.product;
+  const target =
+    raw.velocityPerDay * (product.leadTimeDays + reviewPeriodDays) +
+    raw.safetyStock;
+  const suggestedOrderQty = Math.max(
+    0,
+    Math.ceil(target - product.currentStock),
+  );
+
   return {
     ...raw,
     product,
@@ -79,6 +92,7 @@ function toForecastRow(raw: ForecastWithProduct): ForecastRow {
           snoozedAt: snooze.snoozedAt,
         }
       : null,
+    suggestedOrderQty,
   };
 }
 
@@ -88,6 +102,7 @@ export class ForecastService {
     private readonly prisma: PrismaService,
     private readonly velocityService: VelocityService,
     private readonly reorderService: ReorderService,
+    private readonly settingsService: SettingsService,
   ) {}
 
   async getForecastsForShop(
@@ -135,8 +150,11 @@ export class ForecastService {
       this.prisma.forecast.count({ where }),
     ]);
 
+    const { reviewPeriodDays } =
+      await this.settingsService.getSettings(shopDomain);
+
     return {
-      data: data.map(toForecastRow),
+      data: data.map((row) => toForecastRow(row, reviewPeriodDays)),
       total,
       page,
       limit,
@@ -171,7 +189,9 @@ export class ForecastService {
         },
       },
     });
-    return row ? toForecastRow(row) : null;
+    const { reviewPeriodDays } =
+      await this.settingsService.getSettings(shopDomain);
+    return row ? toForecastRow(row, reviewPeriodDays) : null;
   }
 
   async getMetricSummary(shopDomain: string): Promise<MetricSummary> {

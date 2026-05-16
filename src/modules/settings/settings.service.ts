@@ -7,6 +7,7 @@ export const SETTINGS_DEFAULTS = {
   defaultLeadTimeDays: 14,
   defaultServiceLevelZ: 1.645,
   syncFrequencyHours: 12,
+  reviewPeriodDays: 30,
 } as const;
 
 export type ShopSettingsData = Omit<

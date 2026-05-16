@@ -43,6 +43,13 @@ export class UpdateSettingsDto {
   @Max(168)
   @Type(() => Number)
   syncFrequencyHours?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(1)
+  @Max(365)
+  @Type(() => Number)
+  reviewPeriodDays?: number;
 }
 
 export class UpdateAlertPreferencesDto {

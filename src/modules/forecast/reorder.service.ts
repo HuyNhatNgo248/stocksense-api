@@ -26,6 +26,17 @@ export class ReorderService {
     return Math.round((leadTimeDemand + safetyStock) * 100) / 100;
   }
 
+  calculateSuggestedOrderQty(
+    velocity: number,
+    leadTimeDays: number,
+    safetyStock: number,
+    currentStock: number,
+    reviewPeriodDays: number,
+  ): number {
+    const target = velocity * (leadTimeDays + reviewPeriodDays) + safetyStock;
+    return Math.max(0, Math.ceil(target - currentStock));
+  }
+
   calculateDaysRemaining(
     currentStock: number,
     velocity: number,

@@ -34,6 +34,7 @@ model ShopSettings {
   defaultLeadTimeDays  Float    @default(14)
   defaultServiceLevelZ Float    @default(1.645)
   syncFrequencyHours   Int      @default(12)
+  reviewPeriodDays     Int      @default(30)
   updatedAt            DateTime @updatedAt
   shop                 Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
 

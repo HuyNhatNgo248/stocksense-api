@@ -14,6 +14,11 @@ export type ShopSettingsData = Omit<
   'id' | 'shopId' | 'updatedAt'
 >;
 
+export interface AlertPreferences {
+  alertsEnabled: boolean;
+  alertEmail: string | null;
+}
+
 @Injectable()
 export class SettingsService {
   constructor(private readonly prisma: PrismaService) {}
@@ -25,6 +30,26 @@ export class SettingsService {
     });
 
     return shop.settings!;
+  }
+
+  async getAlertPreferences(shopDomain: string): Promise<AlertPreferences> {
+    const shop = await this.prisma.shop.findUniqueOrThrow({
+      where: { domain: shopDomain },
+      select: { alertsEnabled: true, alertEmail: true },
+    });
+    return shop;
+  }
+
+  async updateAlertPreferences(
+    shopDomain: string,
+    data: Partial<AlertPreferences>,
+  ): Promise<AlertPreferences> {
+    const shop = await this.prisma.shop.update({
+      where: { domain: shopDomain },
+      data,
+      select: { alertsEnabled: true, alertEmail: true },
+    });
+    return shop;
   }
 
   async updateSettings(

@@ -105,6 +105,7 @@ export class ForecastService {
     private readonly settingsService: SettingsService,
   ) {}
 
+  /** Returns a paginated list of forecast rows for a shop, including suggested order qty. */
   async getForecastsForShop(
     shopDomain: string,
     page: number,
@@ -162,6 +163,7 @@ export class ForecastService {
     };
   }
 
+  /** Returns the forecast row for a specific Shopify variant, or null if not found. */
   async getForecastByVariant(
     shopDomain: string,
     variantId: string,
@@ -194,6 +196,7 @@ export class ForecastService {
     return row ? toForecastRow(row, reviewPeriodDays) : null;
   }
 
+  /** Returns aggregated forecast counts, accuracy, and deltas vs. historical snapshots, excluding snoozed products. */
   async getMetricSummary(shopDomain: string): Promise<MetricSummary> {
     const shop = await this.prisma.shop.findUniqueOrThrow({
       where: { domain: shopDomain },
@@ -286,6 +289,7 @@ export class ForecastService {
     return result;
   }
 
+  /** Upserts today's metric snapshot for the given shop. */
   async saveSnapshot(
     shopId: string,
     summary: Omit<MetricSummary, 'delta'>,
@@ -316,6 +320,7 @@ export class ForecastService {
     });
   }
 
+  /** Returns the EWMA velocity series for a specific variant over the last 44 days. */
   async getVelocityHistory(
     shopDomain: string,
     variantId: string,
@@ -338,6 +343,7 @@ export class ForecastService {
     return this.velocityService.calculateEWMASeries(product.dailySales);
   }
 
+  /** Creates or updates an alert snooze for a variant, recording the expected stock arrival date. */
   async markOrdered(
     shopDomain: string,
     variantId: string,
@@ -361,6 +367,7 @@ export class ForecastService {
     });
   }
 
+  /** Removes the alert snooze for a variant. */
   async unmarkOrdered(shopDomain: string, variantId: string): Promise<void> {
     const product = await this.prisma.product.findFirst({
       where: { shopifyVariantId: variantId, shop: { domain: shopDomain } },
@@ -373,6 +380,7 @@ export class ForecastService {
     });
   }
 
+  /** Re-derives and persists forecast status and days-remaining after a real-time inventory change. */
   async refreshProductStatus(
     productId: string,
     newStock: number,
@@ -399,6 +407,7 @@ export class ForecastService {
     });
   }
 
+  /** Returns the mean forecast accuracy across a set of upsert payloads, or null if empty. */
   averageAccuracy(upserts: UpsertForecastData[]): number | null {
     if (upserts.length === 0) return null;
     return (
@@ -406,6 +415,7 @@ export class ForecastService {
     );
   }
 
+  /** Creates or updates a forecast record for a product. */
   async upsertForecast(data: UpsertForecastData): Promise<Forecast> {
     return this.prisma.forecast.upsert({
       where: { productId: data.productId },

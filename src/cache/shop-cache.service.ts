@@ -16,10 +16,12 @@ export class ShopCacheService {
 
   constructor(@Inject(CACHE_MANAGER) private readonly cache: Cache) {}
 
+  /** Retrieves a cached value by key. */
   async get<T>(key: string): Promise<T | undefined> {
     return this.cache.get<T>(key);
   }
 
+  /** Stores a value in cache and registers the key under the shop domain for bulk invalidation. */
   async set(
     shopDomain: string,
     key: string,
@@ -35,6 +37,7 @@ export class ShopCacheService {
     keys.add(key);
   }
 
+  /** Deletes all cached keys associated with the given shop domain. */
   async invalidateShop(shopDomain: string): Promise<void> {
     const keys = this.keysByShop.get(shopDomain);
     if (!keys?.size) return;

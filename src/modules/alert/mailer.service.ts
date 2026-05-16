@@ -17,6 +17,7 @@ export class MailerService {
     sgMail.setApiKey(apiKey);
   }
 
+  /** Sends an HTML email via SendGrid. Errors are caught and logged without re-throwing. */
   async send(options: SendEmailOptions): Promise<void> {
     const fromEmail = this.config.getOrThrow<string>('SENDGRID_FROM_EMAIL');
 

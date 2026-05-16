@@ -9,6 +9,7 @@ export class SyncCronService {
 
   constructor(private readonly prisma: PrismaService) {}
 
+  /** Purges daily sale records older than 90 days to keep the table lean. */
   @Cron(CronExpression.EVERY_DAY_AT_3AM)
   async purgeOldDailySales(): Promise<void> {
     const cutoff = subDays(new Date(), 90);

@@ -14,7 +14,7 @@ export class VelocityService {
     0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5,
   ];
 
-  // Grid-search the alpha that minimises MAPE on this product's history.
+  /** Grid-searches the alpha that minimises MAPE over the product's sales history. */
   findBestAlpha(
     dailySales: DailySale[],
     fallback = this.DEFAULT_ALPHA,
@@ -36,6 +36,7 @@ export class VelocityService {
     return bestAlpha;
   }
 
+  /** Computes the current EWMA velocity (units/day) from daily sales history. */
   calculateEWMA(dailySales: DailySale[], alpha = this.DEFAULT_ALPHA): number {
     if (!dailySales.length) return 0;
 
@@ -51,7 +52,7 @@ export class VelocityService {
     return Math.round(velocity * 100) / 100;
   }
 
-  // Exponentially weighted stddev, ignoring zero-sale days.
+  /** Computes exponentially weighted demand stddev, ignoring zero-sale days. */
   calculateStddev(dailySales: DailySale[], alpha = this.DEFAULT_ALPHA): number {
     const nonZero = dailySales.filter((d) => d.unitsSold > 0);
     if (nonZero.length < 2) return 0;
@@ -69,6 +70,7 @@ export class VelocityService {
     return Math.round(Math.sqrt(variance) * 100) / 100;
   }
 
+  /** Returns a 0–100 forecast accuracy score derived from MAPE over the sales history. */
   calculateAccuracy(
     dailySales: DailySale[],
     alpha = this.DEFAULT_ALPHA,
@@ -80,8 +82,7 @@ export class VelocityService {
     return Math.round(Math.max(0, (1 - mape) * 100) * 10) / 10;
   }
 
-  // Returns 7 multipliers (index = getUTCDay()) representing how each
-  // weekday compares to the average day. Used to weight lead-time demand.
+  /** Returns 7 multipliers (index = getUTCDay()) representing each weekday's demand relative to the daily average. */
   calculateDayOfWeekMultipliers(dailySales: DailySale[]): number[] {
     const sums = new Array(7).fill(0);
     const counts = new Array(7).fill(0);
@@ -99,6 +100,7 @@ export class VelocityService {
     return avgs.map((a) => a / overall);
   }
 
+  /** Returns the last 30 days of EWMA velocity history plus a 7-day flat projection. */
   calculateEWMASeries(
     dailySales: DailySale[],
     projectionDays = 7,

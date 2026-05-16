@@ -3,6 +3,7 @@ import { ForecastStatus } from '@prisma/client';
 
 @Injectable()
 export class ReorderService {
+  /** Calculates safety stock as z * stddev * sqrt(leadTime). */
   calculateSafetyStock(
     stddev: number,
     leadTimeDays: number,
@@ -11,8 +12,7 @@ export class ReorderService {
     return Math.round(z * stddev * Math.sqrt(leadTimeDays) * 100) / 100;
   }
 
-  // When dowMultipliers are provided, sums DOW-adjusted daily demand over
-  // the lead time window instead of using a flat velocity * days estimate.
+  /** Calculates the reorder point using flat or DOW-adjusted lead-time demand plus safety stock. */
   calculateReorderPoint(
     velocity: number,
     leadTimeDays: number,
@@ -26,6 +26,7 @@ export class ReorderService {
     return Math.round((leadTimeDemand + safetyStock) * 100) / 100;
   }
 
+  /** Calculates the quantity to order to cover lead time plus one review period above safety stock. */
   calculateSuggestedOrderQty(
     velocity: number,
     leadTimeDays: number,
@@ -37,6 +38,7 @@ export class ReorderService {
     return Math.max(0, Math.ceil(target - currentStock));
   }
 
+  /** Returns how many days of stock remain at the current velocity, or null if velocity is zero. */
   calculateDaysRemaining(
     currentStock: number,
     velocity: number,
@@ -45,6 +47,7 @@ export class ReorderService {
     return Math.floor(currentStock / velocity);
   }
 
+  /** Derives CRITICAL, REORDER, or OK status based on stock level vs. safety stock and reorder point. */
   deriveStatus(
     currentStock: number,
     safetyStock: number,

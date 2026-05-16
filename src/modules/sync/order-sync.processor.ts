@@ -97,11 +97,13 @@ export class OrderSyncProcessor {
             shopId,
             shopifyProductId: String(product.id),
             shopifyVariantId: String(variant.id),
+            shopifyInventoryItemId: String(variant.inventory_item_id),
             title,
             sku: variant.sku ?? '',
             currentStock: variant.inventory_quantity ?? 0,
           },
           update: {
+            shopifyInventoryItemId: String(variant.inventory_item_id),
             title,
             sku: variant.sku ?? '',
             currentStock: variant.inventory_quantity ?? 0,

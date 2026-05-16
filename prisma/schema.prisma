@@ -43,8 +43,9 @@ model ShopSettings {
 model Product {
   id               String       @id @default(uuid())
   shopId           String
-  shopifyProductId String
-  shopifyVariantId String
+  shopifyProductId        String
+  shopifyVariantId        String
+  shopifyInventoryItemId  String?
   title            String
   sku              String
   currentStock     Int          @default(0)

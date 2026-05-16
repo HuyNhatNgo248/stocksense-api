@@ -2,6 +2,8 @@ import { Injectable, Logger } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bull';
 import { format } from 'date-fns';
 import { PrismaService } from '../../database/prisma.service';
+import { ShopCacheService } from '../../cache/shop-cache.service';
+import { ForecastService } from '../forecast/forecast.service';
 import {
   ShopifyOrder,
   ShopifyInventoryLevel,
@@ -15,6 +17,8 @@ export class SyncService {
 
   constructor(
     private readonly prisma: PrismaService,
+    private readonly forecastService: ForecastService,
+    private readonly shopCache: ShopCacheService,
     @InjectQueue('order-sync') private readonly syncQueue: Queue,
   ) {}
 
@@ -93,16 +97,24 @@ export class SyncService {
     });
     if (!dbShop) return;
 
-    await this.prisma.product.updateMany({
+    const newStock = Math.max(0, payload.available ?? 0);
+
+    const product = await this.prisma.product.findFirst({
       where: {
         shopId: dbShop.id,
-        shopifyVariantId: String(payload.inventory_item_id),
+        shopifyInventoryItemId: String(payload.inventory_item_id),
       },
-      data: {
-        currentStock: Math.max(0, payload.available ?? 0),
-        stockUpdatedAt: new Date(),
-      },
+      select: { id: true },
     });
+    if (!product) return;
+
+    await this.prisma.product.update({
+      where: { id: product.id },
+      data: { currentStock: newStock, stockUpdatedAt: new Date() },
+    });
+
+    await this.forecastService.refreshProductStatus(product.id, newStock);
+    await this.shopCache.invalidateShop(shop);
   }
 
   async handleUninstall(shop: string): Promise<void> {

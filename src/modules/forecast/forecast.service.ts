@@ -3,6 +3,7 @@ import { Forecast, ForecastStatus, Prisma } from '@prisma/client';
 import { startOfDay, subDays, startOfMonth } from 'date-fns';
 import { PrismaService } from '../../database/prisma.service';
 import { VelocityService, VelocityPoint } from './velocity.service';
+import { ReorderService } from './reorder.service';
 
 export type ForecastWithProduct = Prisma.ForecastGetPayload<{
   include: {
@@ -86,6 +87,7 @@ export class ForecastService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly velocityService: VelocityService,
+    private readonly reorderService: ReorderService,
   ) {}
 
   async getForecastsForShop(
@@ -348,6 +350,32 @@ export class ForecastService {
 
     await this.prisma.alertSnooze.deleteMany({
       where: { productId: product.id },
+    });
+  }
+
+  async refreshProductStatus(
+    productId: string,
+    newStock: number,
+  ): Promise<void> {
+    const forecast = await this.prisma.forecast.findUnique({
+      where: { productId },
+      select: { safetyStock: true, reorderPoint: true, velocityPerDay: true },
+    });
+    if (!forecast) return;
+
+    const status = this.reorderService.deriveStatus(
+      newStock,
+      forecast.safetyStock,
+      forecast.reorderPoint,
+    );
+    const daysOfStockRemaining = this.reorderService.calculateDaysRemaining(
+      newStock,
+      forecast.velocityPerDay,
+    );
+
+    await this.prisma.forecast.update({
+      where: { productId },
+      data: { status, daysOfStockRemaining },
     });
   }
 

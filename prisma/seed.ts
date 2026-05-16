@@ -13,6 +13,7 @@ interface ShopifyVariant {
   title: string;
   sku: string;
   inventory_quantity: number;
+  inventory_item_id: number;
 }
 
 interface ShopifyProduct {
@@ -114,6 +115,7 @@ async function main(): Promise<void> {
           },
         },
         update: {
+          shopifyInventoryItemId: String(variant.inventory_item_id),
           title:
             variant.title !== 'Default Title'
               ? `${product.title} — ${variant.title}`
@@ -125,6 +127,7 @@ async function main(): Promise<void> {
           shopId: seededShop.id,
           shopifyProductId: String(product.id),
           shopifyVariantId: String(variant.id),
+          shopifyInventoryItemId: String(variant.inventory_item_id),
           title:
             variant.title !== 'Default Title'
               ? `${product.title} — ${variant.title}`

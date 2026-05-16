@@ -1,4 +1,5 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
+import { timingSafeEqual } from 'crypto';
 import { InjectQueue } from '@nestjs/bull';
 import { format } from 'date-fns';
 import { PrismaService } from '../../database/prisma.service';
@@ -22,13 +23,57 @@ export class SyncService {
     @InjectQueue('order-sync') private readonly syncQueue: Queue,
   ) {}
 
+  /** Enqueues a historical order backfill job for the given shop. */
   async triggerBackfill(shop: string, daysBack = 90): Promise<void> {
     await this.syncQueue.add(
       'backfill',
       { shop, daysBack },
-      { attempts: 3, backoff: { type: 'exponential', delay: 5000 } },
+      {
+        jobId: `backfill-${shop}`,
+        attempts: 3,
+        backoff: { type: 'exponential', delay: 5000 },
+      },
     );
     this.logger.log(`Backfill queued for ${shop}`);
+  }
+
+  /** Verifies the provided Shopify access token matches the stored token for the shop. Throws 401 on mismatch. */
+  async verifyShopToken(shop: string, token: string): Promise<void> {
+    const dbShop = await this.prisma.shop.findUnique({
+      where: { domain: shop },
+      select: { accessToken: true },
+    });
+
+    if (!dbShop) throw new UnauthorizedException();
+
+    const stored = Buffer.from(dbShop.accessToken);
+    const provided = Buffer.from(token);
+    if (
+      stored.length !== provided.length ||
+      !timingSafeEqual(stored, provided)
+    ) {
+      throw new UnauthorizedException();
+    }
+  }
+
+  /** Returns the current state of the initial backfill job for a shop. */
+  async getBackfillStatus(shop: string): Promise<{
+    status: 'pending' | 'running' | 'done' | 'failed' | 'not_started';
+  }> {
+    const job = await this.syncQueue.getJob(`backfill-${shop}`);
+
+    if (!job) return { status: 'not_started' };
+
+    const state = await job.getState();
+    const statusMap: Record<string, 'pending' | 'running' | 'done' | 'failed'> =
+      {
+        waiting: 'pending',
+        delayed: 'pending',
+        active: 'running',
+        completed: 'done',
+        failed: 'failed',
+      };
+    return { status: statusMap[state] ?? 'pending' };
   }
 
   async processNewOrder(shop: string, order: ShopifyOrder): Promise<void> {

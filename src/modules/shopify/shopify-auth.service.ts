@@ -54,10 +54,17 @@ export class ShopifyAuthService {
     const isNew = await this.saveShop(query.shop, accessToken);
 
     if (isNew) {
+      const existingJob = await this.syncQueue.getJob(`backfill-${query.shop}`);
+      if (existingJob) await existingJob.remove();
+
       await this.syncQueue.add(
         'backfill',
         { shop: query.shop, daysBack: 90 },
-        { attempts: 3, backoff: { type: 'exponential', delay: 5000 } },
+        {
+          jobId: `backfill-${query.shop}`,
+          attempts: 3,
+          backoff: { type: 'exponential', delay: 5000 },
+        },
       );
     }
 

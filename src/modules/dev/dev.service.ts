@@ -32,8 +32,6 @@ function fakeDailySales(profile: SalesProfile): number {
   }
 }
 
-const DEV_SHOP_DOMAIN = 'stocksense-dev-chm95wjf.myshopify.com';
-
 @Injectable()
 export class DevService {
   private readonly logger = new Logger(DevService.name);
@@ -44,6 +42,10 @@ export class DevService {
     private readonly shopCache: ShopCacheService,
   ) {}
 
+  private async getDevShop() {
+    return this.prisma.shop.findFirst({ select: { id: true, domain: true } });
+  }
+
   @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
   async runDailySimulation(): Promise<void> {
     await this.simulateDay();
@@ -52,10 +54,7 @@ export class DevService {
   async simulateDay(): Promise<{ productsUpdated: number }> {
     const today = startOfDay(new Date());
 
-    const shop = await this.prisma.shop.findUnique({
-      where: { domain: DEV_SHOP_DOMAIN },
-      select: { id: true, domain: true },
-    });
+    const shop = await this.getDevShop();
     if (!shop) return { productsUpdated: 0 };
 
     const products = await this.prisma.product.findMany({
@@ -85,10 +84,7 @@ export class DevService {
   }
 
   async seedHistoricalSales(days = 90): Promise<{ productsSeeded: number }> {
-    const shop = await this.prisma.shop.findUnique({
-      where: { domain: DEV_SHOP_DOMAIN },
-      select: { id: true, domain: true },
-    });
+    const shop = await this.getDevShop();
     if (!shop) return { productsSeeded: 0 };
 
     const products = await this.prisma.product.findMany({

@@ -7,6 +7,8 @@ import {
   ShopifyOrder,
   ShopifyProduct,
 } from '../shopify/shopify-api.service';
+import { ForecastCronService } from '../forecast/forecast-cron.service';
+import { ShopCacheService } from '../../cache/shop-cache.service';
 
 import type { Job } from 'bull';
 
@@ -28,6 +30,8 @@ export class OrderSyncProcessor {
   constructor(
     private readonly prisma: PrismaService,
     private readonly shopifyApi: ShopifyApiService,
+    private readonly forecastCron: ForecastCronService,
+    private readonly shopCache: ShopCacheService,
   ) {}
 
   @Process('backfill')
@@ -67,6 +71,10 @@ export class OrderSyncProcessor {
     } while (pageInfo);
 
     this.logger.log(`Backfill complete for ${shop}: ${totalOrders} orders`);
+
+    await this.forecastCron.runForecastsForShop(dbShop.id, shop);
+    await this.shopCache.invalidateShop(shop);
+    this.logger.log(`Initial forecasts calculated for ${shop}`);
   }
 
   private async syncProducts(

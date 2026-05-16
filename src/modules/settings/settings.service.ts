@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { ShopSettings } from '@prisma/client';
 import { PrismaService } from '../../database/prisma.service';
+import { ShopCacheService } from '../../cache/shop-cache.service';
 
 export const SETTINGS_DEFAULTS = {
   ewmaAlpha: 0.3,
@@ -22,7 +23,10 @@ export interface AlertPreferences {
 
 @Injectable()
 export class SettingsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly shopCache: ShopCacheService,
+  ) {}
 
   async getSettings(shopDomain: string): Promise<ShopSettingsData> {
     const shop = await this.prisma.shop.findUniqueOrThrow({
@@ -67,6 +71,8 @@ export class SettingsService {
       create: { shopId: shop.id, ...SETTINGS_DEFAULTS, ...data },
       update: data,
     });
+
+    await this.shopCache.invalidateShop(shopDomain);
 
     return settings;
   }

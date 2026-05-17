@@ -87,7 +87,7 @@ export class ForecastController {
     const cacheKey = `${req.shop.domain}:forecasts:metrics`;
 
     const cached = await this.shopCache.get<MetricSummary>(cacheKey);
-    console.log(cached);
+
     if (cached) return cached;
 
     const result = await this.forecastService.getMetricSummary(req.shop.domain);

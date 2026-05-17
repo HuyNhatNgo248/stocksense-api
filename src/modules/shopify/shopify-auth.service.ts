@@ -84,13 +84,6 @@ export class ShopifyAuthService {
     const secret = this.config.getOrThrow<string>('SHOPIFY_APP_CLIENT_SECRET');
     const digest = createHmac('sha256', secret).update(message).digest('hex');
 
-    console.log('HMAC debug', {
-      message,
-      digest,
-      expected: hmac,
-      rawKeys: Object.keys(rawQuery),
-    });
-
     if (digest !== hmac) {
       throw new UnauthorizedException('Invalid OAuth HMAC');
     }

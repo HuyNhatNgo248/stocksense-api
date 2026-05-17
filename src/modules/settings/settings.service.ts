@@ -3,6 +3,8 @@ import { ShopSettings } from '@prisma/client';
 import { PrismaService } from '../../database/prisma.service';
 import { ShopCacheService } from '../../cache/shop-cache.service';
 
+import type { Shop } from '@prisma/client';
+
 export const SETTINGS_DEFAULTS = {
   ewmaAlpha: 0.3,
   defaultLeadTimeDays: 14,
@@ -21,6 +23,9 @@ export interface AlertPreferences {
   alertEmail: string | null;
 }
 
+export type ShopDefaultSettingsData = ShopSettingsData &
+  Pick<Shop, 'alertEmail' | 'alertsEnabled'>;
+
 @Injectable()
 export class SettingsService {
   constructor(
@@ -35,6 +40,14 @@ export class SettingsService {
     });
 
     return shop.settings!;
+  }
+
+  getDefaultSettings(): ShopDefaultSettingsData {
+    return {
+      ...SETTINGS_DEFAULTS,
+      alertsEnabled: true,
+      alertEmail: null,
+    };
   }
 
   async getAlertPreferences(shopDomain: string): Promise<AlertPreferences> {

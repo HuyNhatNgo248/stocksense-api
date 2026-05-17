@@ -12,6 +12,7 @@ import {
   SettingsService,
   ShopSettingsData,
   AlertPreferences,
+  ShopDefaultSettingsData,
 } from './settings.service';
 import { SessionGuard } from '../../common/guards/session.guard';
 
@@ -73,6 +74,11 @@ export class SettingsController {
     @Req() req: AuthenticatedRequest,
   ): Promise<ShopSettingsData> {
     return this.settingsService.getSettings(req.shop.domain);
+  }
+
+  @Get('default')
+  getDefaultSettings(): ShopDefaultSettingsData {
+    return this.settingsService.getDefaultSettings();
   }
 
   // PUT /api/settings

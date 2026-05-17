@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { startOfDay, subDays } from 'date-fns';
+import { SentryCapture } from '../../common/sentry/capture';
 import { PrismaService } from '../../database/prisma.service';
 import { ShopCacheService } from '../../cache/shop-cache.service';
 import { ForecastCronService } from '../forecast/forecast-cron.service';
@@ -47,6 +48,7 @@ export class DevService {
   }
 
   @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
+  @SentryCapture({ cron: 'dev-daily-simulation' })
   async runDailySimulation(): Promise<void> {
     await this.simulateDay();
   }

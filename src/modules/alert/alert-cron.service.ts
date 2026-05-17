@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import { PrismaService } from '../../database/prisma.service';
 import { AlertService } from './alert.service';
+import { SentryCapture, captureAndContinue } from '../../common/sentry/capture';
 
 @Injectable()
 export class AlertCronService {
@@ -14,6 +15,7 @@ export class AlertCronService {
 
   // Run at 8am every day — after the 2am nightly forecast run
   @Cron('0 8 * * *')
+  @SentryCapture({ cron: 'daily-digest' })
   async sendDailyDigests(): Promise<void> {
     this.logger.log('Daily digest run started');
 
@@ -26,7 +28,10 @@ export class AlertCronService {
     });
 
     for (const shop of shops) {
-      await this.alertService.sendDailyDigest(shop.domain);
+      await captureAndContinue(
+        () => this.alertService.sendDailyDigest(shop.domain),
+        { cron: 'daily-digest', shop: shop.domain },
+      );
     }
 
     this.logger.log(`Daily digests sent for ${shops.length} shops`);

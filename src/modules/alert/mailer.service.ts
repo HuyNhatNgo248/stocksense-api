@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import * as Sentry from '@sentry/nestjs';
 import { createTransport, type Transporter } from 'nodemailer';
 
 interface SendEmailOptions {
@@ -42,6 +43,10 @@ export class MailerService {
       });
     } catch (err: unknown) {
       this.logger.error(`Failed to send email to ${options.to}`, err);
+      Sentry.captureException(err, {
+        tags: { component: 'mailer' },
+        extra: { to: options.to, subject: options.subject },
+      });
     }
   }
 }

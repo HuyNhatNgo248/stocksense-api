@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { subDays } from 'date-fns';
+import { SentryCapture, captureAndContinue } from '../../common/sentry/capture';
 import { PrismaService } from '../../database/prisma.service';
 import { VelocityService } from './velocity.service';
 import { ReorderService } from './reorder.service';
@@ -20,6 +21,7 @@ export class ForecastCronService {
   ) {}
 
   @Cron(CronExpression.EVERY_DAY_AT_2AM)
+  @SentryCapture({ cron: 'nightly-forecast' })
   async runNightlyForecasts(): Promise<void> {
     this.logger.log('Nightly forecast run started');
 
@@ -28,7 +30,12 @@ export class ForecastCronService {
     });
 
     await Promise.all(
-      shops.map((shop) => this.runForecastsForShop(shop.id, shop.domain)),
+      shops.map((shop) =>
+        captureAndContinue(
+          () => this.runForecastsForShop(shop.id, shop.domain),
+          { cron: 'nightly-forecast', shop: shop.domain },
+        ),
+      ),
     );
 
     this.logger.log('Nightly forecast run complete');

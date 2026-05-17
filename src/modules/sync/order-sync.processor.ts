@@ -1,6 +1,7 @@
 import { Process, Processor } from '@nestjs/bull';
 import { Logger } from '@nestjs/common';
 import { subDays, format } from 'date-fns';
+import { SentryCapture } from '../../common/sentry/capture';
 import { PrismaService } from '../../database/prisma.service';
 import {
   ShopifyApiService,
@@ -35,6 +36,7 @@ export class OrderSyncProcessor {
   ) {}
 
   @Process('backfill')
+  @SentryCapture({ queue: 'order-sync', job: 'backfill' })
   async handleBackfill(job: Job<BackfillJobData>): Promise<void> {
     const { shop, daysBack } = job.data;
     this.logger.log(`Starting backfill for ${shop} — ${daysBack} days`);

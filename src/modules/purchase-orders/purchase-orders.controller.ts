@@ -88,7 +88,12 @@ export class PurchaseOrdersController {
     if (cached) return cached;
 
     const result = await this.poService.generateSuggestedPo(req.shop.domain);
-    await this.shopCache.set(req.shop.domain, cacheKey, result, TTL.SUGGESTED_PO);
+    await this.shopCache.set(
+      req.shop.domain,
+      cacheKey,
+      result,
+      TTL.SUGGESTED_PO,
+    );
 
     return result;
   }
